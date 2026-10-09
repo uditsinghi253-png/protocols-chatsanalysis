@@ -1,28 +1,27 @@
-# What Did I Miss? — Local-First Unread Chat Triage
+# What Did I Miss? — Local-First Executive Chat Triage
 
-> A hackathon-winning, privacy-first AI micro-app designed to solve the unread conversation overload problem.
+> A production-grade, privacy-first AI micro-app designed to solve the unread conversation overload problem.
 > **100% on-device. Zero telemetry. Zero third-party network egress.**
+> Built with a Linear/Raycast design philosophy: zero emojis, monospace metrics, keyboard-first navigation.
 
 ---
 
 ## ⚡ Quick Start
 
-Ensure you have **Node.js (>= 18)** installed on your machine.
-
 ```bash
 # 1. Install dependencies
 npm install
 
-# 2. Run automated verification & test suite
+# 2. Run automated test suites (26 / 26 tests)
 npm test
 
-# 3. Run zero-hardcoding static audit
+# 3. Run zero-hardcoding & zero-emoji static audit
 npm run audit:hardcode
 
 # 4. Launch the application locally (Vite dev server)
 npm run dev
 
-# 5. (Optional) Launch loopback live-watcher daemon
+# 5. (Optional) Launch loopback live-stream watcher daemon
 node server/ingestServer.mjs
 ```
 
@@ -30,93 +29,54 @@ Open your browser to: **`http://127.0.0.1:5173/`**
 
 ---
 
-## 🎯 What It Solves ("The Unread Problem")
+## 🚀 Standout Features
 
-When you return from being away, group chats often have hundreds of unread messages. Reading walls of chatter wastes hours.
+### 1. Activity Velocity Histogram & Timeline Scrubber
+- Visualizes conversation volume frequency across time intervals.
+- **Interactive Scrubbing**: Click any bar on the timeline to scrub your unread cursor and immediately re-triage the conversation from that timestamp!
 
-**What Did I Miss?** gives you instant glanceable triage:
-1. **"While you were away" Summary**: High-level overview of key topics, participants, and estimated reading time saved.
-2. **Needs Action Now Lane**: Direct questions and asks addressed to you that remain unanswered.
-3. **Deadlines Lane**: Real-time ticking countdowns and overdue alerts calculated against the system clock.
-4. **Decisions Made Lane**: Consensus decisions reached by teammates, automatically resolving supersessions (e.g., when a meeting or deadline is rescheduled).
-5. **Mentions of You Lane**: Any messages tagging your aliases or handles.
-6. **Grounding Citations**: Every item cites verbatim evidence quotes with a 1-click **"Jump to source message"** inspection view.
+### 2. Command Palette (`Cmd+K` / `Ctrl+K`)
+- Full keyboard control inspired by Linear and Raycast.
+- Fuzzy search across unread items, participants, and citations.
+- Quick commands: Copy Executive Briefing, open Privacy Proof audit, tune scoring weights, or wipe data.
 
----
+### 3. Keyboard-Driven Triage
+- <kbd>J</kbd> / <kbd>K</kbd> to navigate through triage items.
+- <kbd>X</kbd> to toggle item completion status.
+- <kbd>S</kbd> to jump directly to the verbatim source citation.
+- <kbd>ESC</kbd> to dismiss modals.
 
-## 🔒 Proving Local-First Security
+### 4. Dual Perspectives (Kanban & Compact List)
+- **Kanban Board**: 4 distinct columns (`Needs Action Now`, `Deadlines`, `Decisions Reached`, `Mentions of You`).
+- **Compact List**: Single-table high-density view for rapid power-user triage.
 
-Hard constraint **C5** requires that conversations never leave the device. We prove this mathematically and mechanically:
+### 5. 1-Click Executive Standup Briefing
+- Generates a structured, copy-paste ready Markdown briefing summarizing key decisions, owners, deadlines, and pending questions for Slack, Jira, or email.
 
-1. **Strict Content Security Policy (CSP)**:
-   Locked in `index.html` to:
-   ```html
-   connect-src 'self' http://127.0.0.1:* http://localhost:* ws://127.0.0.1:* ws://localhost:*;
-   ```
-   Any attempt by any third-party script or dependency to contact an external domain is instantly rejected by the browser engine.
+### 6. Real-Time Engine & Live Watcher
+- Real-time clock ticks update approaching countdowns every 5 seconds; crossing a deadline flips it to **OVERDUE** live without refreshing.
+- Loopback Server-Sent Events (SSE) daemon on `127.0.0.1:4040` automatically streams new incoming messages into the dashboard in real time.
 
-2. **Runtime Egress Guard (`src/security/egressGuard.ts`)**:
-   Monkey-patches `window.fetch` and `XMLHttpRequest`. Any request targeting a non-loopback IP or external domain is immediately aborted with a logged security audit event.
+### 7. Grounding Verifier & Supersession Engine
+- Every item cites verbatim evidence quotes verified by deterministic code (`src/engine/groundingVerifier.ts`).
+- When a teammate reverses a decision (*"Actually let's make it Monday instead"*), the previous decision is automatically marked **SUPERSEDED** and linked to the new commitment.
 
-3. **Privacy Proof Panel (in UI)**:
-   Click the **"Privacy Proof"** button in the header at any time:
-   - View live outbound request counters (Guaranteed: **0 Non-Loopback Egress**).
-   - Click **"Simulate External Call"** to trigger a real test network call and watch the guard intercept and block it live.
-   - Inspect the real-time Network Egress Audit Log.
-
-4. **1-Click Total Data Erasure**:
-   Click **"Wipe Data"** in the header to instantly purge all stored conversations and memory from disk and browser storage.
-
----
-
-## 🧪 Architecture & Multi-Tier Processing
-
-```
-Chat Export (.txt / JSON)
-        │
-        ▼
-[ Ingest Sniffer ] ─── Content sniffing, format detection, stable message IDs
-        │
-        ▼
-[ Unread Cursor ] ─── Read markers ➔ User manual cursor ➔ Last own message fallback
-        │
-        ├─────────────────────────────────────────┐
-        ▼ (0ms Instant Pass)                      ▼ (Loopback / Enrichment)
-[ L1 Deterministic Signals ]              [ L2 Local Model Probe ]
-  - Temporal expressions (relative/tz)       - Probes Ollama (11434) / LM Studio (1234)
-  - Direct & indirect user addressing        - Structured JSON extraction
-  - Unanswered questions to user             - Graceful degradation if offline
-  - Shouting false-urgency penalty
-        │                                         │
-        └─────────────────┬───────────────────────┘
-                          ▼
-               [ L3 Grounding Verifier ]
-                 - Deterministic quote substring check
-                 - Unverified items downgraded
-                          ▼
-            [ Supersession Resolution (E2) ]
-                 - Decisions/deadlines reversed
-                          ▼
-             [ L4 Explainable Urgency ]
-                 - Sum of weighted signals
-                 - Quantile score distribution
-                 - Real-time clock tick countdowns
-                          ▼
-              [ Glassmorphism Triage UI ]
-```
+### 8. Strict Privacy Proof & Egress Guard
+- Content Security Policy (CSP) locked to loopback (`127.0.0.1`).
+- Runtime `fetch` and `XHR` monkey-patches block and log any non-loopback attempt.
+- Built-in Privacy Proof panel with a live **"Simulate External Call"** button demonstrating runtime interception.
+- 1-Click total data purge.
 
 ---
 
 ## 🛠️ Testing & Audits
 
-Run the full automated test suite covering all 12 workshop edge cases (E1 to E12):
-
+Run the full automated test suite:
 ```bash
 npm test
 ```
 
-Run the strict static hardcode audit scanner:
-
+Run the strict static hardcode and emoji audit scanner:
 ```bash
 npm run audit:hardcode
 ```
@@ -125,5 +85,5 @@ npm run audit:hardcode
 
 ## ⚠️ Known Limits
 
-1. **Audio / Voice Notes**: WhatsApp voice note transcripts require external local speech-to-text (e.g. Whisper.cpp), which is currently not bundled in this browser micro-app.
-2. **Ambiguous Mentions Across Group Nicknames**: If a user is referred to by a previously unseen nickname not registered in their Identity Profile, it falls back to 1:1 conversation addressing rules or general action items.
+1. **Audio / Voice Notes**: WhatsApp voice note audio files require local speech-to-text (e.g. Whisper.cpp), which is not bundled into this web bundle.
+2. **Ambiguous Mentions Across Group Nicknames**: If an unseen nickname is used that is not in the user's Identity Profile, it falls back to 1:1 conversation addressing rules or general action items.
