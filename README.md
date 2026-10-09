@@ -1,7 +1,12 @@
 # What Did I Miss? — Local-First Executive Chat Triage
 
-> A production-grade, privacy-first AI micro-app designed to solve the unread conversation overload problem.
-> **100% on-device. Zero telemetry. Zero third-party network egress.**
+> **Live Production Deployment:** [https://uditsinghi253-png.github.io/protocols-chatsanalysis/](https://uditsinghi253-png.github.io/protocols-chatsanalysis/)  
+> **Source Repository:** [https://github.com/uditsinghi253-png/protocols-chatsanalysis](https://github.com/uditsinghi253-png/protocols-chatsanalysis)  
+> **Technical Architecture & Specifications:** [context.md](context.md)  
+> **Prompt Engineering & Directives Log:** [prompts used.md](prompts%20used.md)  
+> 
+> A production-grade, privacy-first AI micro-app designed to solve the unread conversation overload problem.  
+> **100% on-device. Zero telemetry. Zero third-party network egress.**  
 > Built with a Linear/Raycast design philosophy: zero emojis, monospace metrics, keyboard-first navigation.
 
 ---
@@ -12,7 +17,7 @@
 # 1. Install dependencies
 npm install
 
-# 2. Run automated test suites (26 / 26 tests)
+# 2. Run automated test suites (32 / 32 tests passing)
 npm test
 
 # 3. Run zero-hardcoding & zero-emoji static audit
