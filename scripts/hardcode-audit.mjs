@@ -31,6 +31,10 @@ const BANNED_PATTERNS = [
     name: 'TODO fake data comments',
     regex: /\bTODO\s*:\s*(?:mock|fake|dummy|hardcode)\b/i,
   },
+  {
+    name: 'Prohibited emoji/pictograph in production code',
+    regex: /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u,
+  },
 ];
 
 function getAllFiles(dir, fileList = []) {

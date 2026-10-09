@@ -1,11 +1,19 @@
+/**
+ * Executive Header Toolbar
+ * Precision Linear-style header with real-time indicators and keyboard shortcuts.
+ * Zero emojis. Strictly clean typography and SVG micro-icons.
+ */
+
 import React from 'react';
-import { Shield, Sliders, Settings, Trash2, Cpu } from 'lucide-react';
+import { Shield, Sliders, Settings, Trash2, Cpu, Terminal, FileText, Command } from 'lucide-react';
 import { EgressStats, RuntimeProbeResult } from '../types/schema';
 
 interface HeaderProps {
   egressStats: EgressStats;
   runtimeStatus: RuntimeProbeResult;
   isLiveStreamConnected?: boolean;
+  onOpenCommandPalette: () => void;
+  onOpenExecutiveBriefing: () => void;
   onOpenPrivacyProof: () => void;
   onOpenWhyDrawer: () => void;
   onOpenSettings: () => void;
@@ -17,6 +25,8 @@ export const Header: React.FC<HeaderProps> = ({
   egressStats,
   runtimeStatus,
   isLiveStreamConnected,
+  onOpenCommandPalette,
+  onOpenExecutiveBriefing,
   onOpenPrivacyProof,
   onOpenWhyDrawer,
   onOpenSettings,
@@ -24,44 +34,150 @@ export const Header: React.FC<HeaderProps> = ({
   hasData,
 }) => {
   return (
-    <header className="glass-panel" style={{ padding: '14px 24px', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+    <header
+      className="linear-panel"
+      style={{
+        padding: '12px 20px',
+        marginBottom: '20px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: '12px',
+        borderBottom: '1px solid var(--border-subtle)',
+      }}
+    >
+      {/* Brand & Mission */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-        <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(99, 102, 241, 0.35)' }}>
-          <span style={{ fontSize: '20px', fontWeight: 'bold', color: '#fff' }}>⚡</span>
+        <div
+          style={{
+            width: '28px',
+            height: '28px',
+            borderRadius: '6px',
+            background: 'linear-gradient(135deg, #4f46e5 0%, #1e1b4b 100%)',
+            border: '1px solid var(--border-subtle)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Terminal size={14} color="#a5b4fc" />
         </div>
         <div>
-          <h1 style={{ fontSize: '18px', fontWeight: '700', letterSpacing: '-0.02em', color: '#fff' }}>
-            What Did I Miss?
-          </h1>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--text-secondary)' }}>
-            <span>Local-First Unread Triage</span>
-            <span>•</span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#10b981' }}>
-              <span className="pulse-live" style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10b981' }} />
-              On-Device Only
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '14px', fontWeight: '700', letterSpacing: '-0.02em', color: '#fff' }}>
+              What Did I Miss?
+            </span>
+            <span
+              style={{
+                fontSize: '10px',
+                fontFamily: 'var(--font-mono)',
+                padding: '1px 5px',
+                borderRadius: '4px',
+                background: 'rgba(255, 255, 255, 0.06)',
+                border: '1px solid var(--border-hairline)',
+                color: 'var(--text-muted)',
+              }}
+            >
+              LOCAL-FIRST
             </span>
           </div>
         </div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-        {/* Active Runtime Indicator */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '8px', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid var(--border-subtle)', fontSize: '12px' }}>
-          <Cpu size={14} color={runtimeStatus.isOnline ? '#10b981' : '#94a3b8'} />
-          <span style={{ color: 'var(--text-secondary)' }}>Engine:</span>
-          <strong style={{ color: runtimeStatus.isOnline ? '#a5b4fc' : '#cbd5e1' }}>
-            {runtimeStatus.isOnline 
-              ? `${runtimeStatus.engineType.toUpperCase()} (${runtimeStatus.activeModel || 'Active'})`
-              : 'Deterministic L1 (Offline)'}
-          </strong>
+      {/* Middle Action: Quick Command Palette Trigger */}
+      <button
+        onClick={onOpenCommandPalette}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          padding: '6px 12px',
+          borderRadius: '6px',
+          background: 'rgba(255, 255, 255, 0.04)',
+          border: '1px solid var(--border-hairline)',
+          color: 'var(--text-muted)',
+          fontSize: '12px',
+          cursor: 'pointer',
+        }}
+        title="Open command palette (Cmd+K)"
+      >
+        <Command size={12} />
+        <span>Quick search or action...</span>
+        <kbd>⌘K</kbd>
+      </button>
+
+      {/* Right Controls */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+        {/* Active Engine Indicator */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '5px 10px',
+            borderRadius: '6px',
+            background: 'rgba(255, 255, 255, 0.03)',
+            border: '1px solid var(--border-hairline)',
+            fontSize: '11px',
+            fontFamily: 'var(--font-mono)',
+          }}
+        >
+          <span
+            className="led-indicator"
+            style={{ backgroundColor: runtimeStatus.isOnline ? 'var(--success)' : 'var(--accent)' }}
+          />
+          <Cpu size={12} color="var(--text-muted)" />
+          <span style={{ color: 'var(--text-secondary)' }}>
+            {runtimeStatus.isOnline
+              ? `${runtimeStatus.engineType.toUpperCase()}`
+              : 'REAL-TIME ENGINE'}
+          </span>
         </div>
 
-        {/* Live Loopback Stream Badge */}
+        {/* Live Watcher Pill */}
         {isLiveStreamConnected && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 10px', borderRadius: '8px', background: 'rgba(99, 102, 241, 0.12)', border: '1px solid rgba(99, 102, 241, 0.3)', fontSize: '12px', color: '#c7d2fe' }}>
-            <span className="pulse-live" style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#6366f1' }} />
-            <span>Live Watcher</span>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '5px 9px',
+              borderRadius: '6px',
+              background: 'var(--accent-subtle)',
+              border: '1px solid var(--accent-border)',
+              fontSize: '11px',
+              color: 'var(--accent)',
+              fontFamily: 'var(--font-mono)',
+            }}
+          >
+            <span className="led-indicator" style={{ backgroundColor: 'var(--accent)' }} />
+            <span>LIVE STREAM</span>
           </div>
+        )}
+
+        {/* Executive Standup Briefing Button */}
+        {hasData && (
+          <button
+            onClick={onOpenExecutiveBriefing}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px',
+              padding: '5px 11px',
+              borderRadius: '6px',
+              background: 'rgba(255, 255, 255, 0.04)',
+              border: '1px solid var(--border-hairline)',
+              color: 'var(--text-secondary)',
+              fontSize: '11px',
+              fontWeight: '600',
+              cursor: 'pointer',
+            }}
+            title="Export executive standup briefing"
+          >
+            <FileText size={12} />
+            <span>Briefing</span>
+          </button>
         )}
 
         {/* Privacy Proof Button */}
@@ -70,43 +186,41 @@ export const Header: React.FC<HeaderProps> = ({
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '6px',
-            padding: '6px 14px',
-            borderRadius: '8px',
-            background: 'var(--color-success-bg)',
-            border: '1px solid rgba(16, 185, 129, 0.3)',
-            color: '#10b981',
-            fontSize: '12px',
+            gap: '5px',
+            padding: '5px 11px',
+            borderRadius: '6px',
+            background: 'var(--success-subtle)',
+            border: '1px solid var(--success-border)',
+            color: 'var(--success)',
+            fontSize: '11px',
             fontWeight: '600',
             cursor: 'pointer',
-            transition: 'all 0.2s',
           }}
           title="Inspect privacy proof and egress monitor"
         >
-          <Shield size={14} />
-          <span>Privacy Proof: {egressStats.blockedRequests} Egress Blocked</span>
+          <Shield size={12} />
+          <span>Privacy: {egressStats.blockedRequests} Egress</span>
         </button>
 
-        {/* Why Drawer Button */}
+        {/* Tuning / Why Drawer Button */}
         <button
           onClick={onOpenWhyDrawer}
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '6px',
-            padding: '6px 12px',
-            borderRadius: '8px',
-            background: 'rgba(99, 102, 241, 0.1)',
-            border: '1px solid rgba(99, 102, 241, 0.3)',
-            color: '#a5b4fc',
-            fontSize: '12px',
-            fontWeight: '500',
+            gap: '5px',
+            padding: '5px 10px',
+            borderRadius: '6px',
+            background: 'rgba(255, 255, 255, 0.04)',
+            border: '1px solid var(--border-hairline)',
+            color: 'var(--text-secondary)',
+            fontSize: '11px',
             cursor: 'pointer',
           }}
-          title="Adjust scoring weights and inspect why ranking works"
+          title="Inspect scoring weights"
         >
-          <Sliders size={14} />
-          <span>Why Drawer</span>
+          <Sliders size={12} />
+          <span>Tuning</span>
         </button>
 
         {/* Settings Button */}
@@ -115,41 +229,37 @@ export const Header: React.FC<HeaderProps> = ({
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '6px',
-            padding: '6px 12px',
-            borderRadius: '8px',
-            background: 'rgba(255, 255, 255, 0.05)',
-            border: '1px solid var(--border-subtle)',
+            padding: '5px 8px',
+            borderRadius: '6px',
+            background: 'rgba(255, 255, 255, 0.04)',
+            border: '1px solid var(--border-hairline)',
             color: 'var(--text-secondary)',
-            fontSize: '12px',
+            fontSize: '11px',
             cursor: 'pointer',
           }}
-          title="Configure identity profile, timezone, and models"
+          title="Configure identity profile"
         >
-          <Settings size={14} />
-          <span>Settings</span>
+          <Settings size={12} />
         </button>
 
-        {/* 1-Click Wipe Button */}
+        {/* Wipe Data */}
         {hasData && (
           <button
             onClick={onWipeData}
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
-              padding: '6px 12px',
-              borderRadius: '8px',
-              background: 'var(--color-critical-bg)',
-              border: '1px solid rgba(239, 68, 68, 0.3)',
-              color: '#ef4444',
-              fontSize: '12px',
+              padding: '5px 8px',
+              borderRadius: '6px',
+              background: 'var(--crit-subtle)',
+              border: '1px solid var(--crit-border)',
+              color: 'var(--crit)',
+              fontSize: '11px',
               cursor: 'pointer',
             }}
-            title="Instantly purge all stored chat messages and memory"
+            title="Purge all local data"
           >
-            <Trash2 size={14} />
-            <span>Wipe Data</span>
+            <Trash2 size={12} />
           </button>
         )}
       </div>

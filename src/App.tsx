@@ -1,12 +1,22 @@
+/**
+ * Main Application Orchestrator
+ * High-velocity Linear-style interface with real-time clock ticking,
+ * keyboard shortcuts (Cmd+K, j/k), timeline scrubbing, and privacy enforcement.
+ * Why: Delivers a defensible, production-ready, executive-grade triage experience.
+ */
+
 import React, { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { SummaryCard } from './components/SummaryCard';
+import { TimelineVelocityChart } from './components/TimelineVelocityChart';
 import { TriageLanes } from './components/TriageLanes';
 import { EmptyState } from './components/EmptyState';
 import { SourceViewerModal } from './components/SourceViewerModal';
 import { WhyDrawer } from './components/WhyDrawer';
 import { PrivacyProofModal } from './components/PrivacyProofModal';
 import { SettingsModal } from './components/SettingsModal';
+import { CommandPaletteModal } from './components/CommandPaletteModal';
+import { ExecutiveBriefingModal } from './components/ExecutiveBriefingModal';
 import { runTriagePipeline } from './engine/pipeline';
 import { rescoreAllItems } from './engine/scoring';
 import { resolveUnreadCursor } from './engine/cursor';
@@ -46,6 +56,9 @@ export const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [progressStage, setProgressStage] = useState('');
 
+  // Selected Item Index for Keyboard Navigation (j/k)
+  const [selectedItemIndex, setSelectedItemIndex] = useState<number>(0);
+
   // Clock Tick (System Clock Time)
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -60,41 +73,9 @@ export const App: React.FC = () => {
   const [isPrivacyProofOpen, setIsPrivacyProofOpen] = useState(false);
   const [isWhyDrawerOpen, setIsWhyDrawerOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [isBriefingOpen, setIsBriefingOpen] = useState(false);
   const [sourceViewerTargetId, setSourceViewerTargetId] = useState<string | null>(null);
-
-  // Connect to local loopback SSE ingest server (Tier 2 Live Mode)
-  useEffect(() => {
-    let sse: EventSource | null = null;
-    let burstTimer: NodeJS.Timeout | null = null;
-
-    try {
-      sse = new EventSource('http://127.0.0.1:4040/events');
-      sse.onopen = () => setIsLiveStreamConnected(true);
-      sse.onerror = () => setIsLiveStreamConnected(false);
-
-      sse.onmessage = e => {
-        try {
-          const payload = JSON.parse(e.data);
-          if (payload.type === 'file_updated' && payload.content) {
-            // Debounce burst updates (Edge Case E10)
-            if (burstTimer) clearTimeout(burstTimer);
-            burstTimer = setTimeout(() => {
-              handleIngestChat(payload.content);
-            }, config.runtime.liveBurstDebounceMs);
-          }
-        } catch {
-          // ignore malformed SSE
-        }
-      };
-    } catch {
-      // Ingest server not started yet
-    }
-
-    return () => {
-      if (burstTimer) clearTimeout(burstTimer);
-      sse?.close();
-    };
-  }, [config.runtime.liveBurstDebounceMs]);
 
   // 1. Install Egress Guard and initialize probes on mount
   useEffect(() => {
@@ -128,25 +109,124 @@ export const App: React.FC = () => {
     };
   }, []);
 
-  // 2. Real-Time Clock Tick: Rescores time-sensitive deadlines as time passes
+  // 2. Connect to local loopback SSE ingest server (Tier 2 Live Mode)
+  useEffect(() => {
+    let sse: EventSource | null = null;
+    let burstTimer: NodeJS.Timeout | null = null;
+
+    try {
+      sse = new EventSource('http://127.0.0.1:4040/events');
+      sse.onopen = () => setIsLiveStreamConnected(true);
+      sse.onerror = () => setIsLiveStreamConnected(false);
+
+      sse.onmessage = e => {
+        try {
+          const payload = JSON.parse(e.data);
+          if (payload.type === 'file_updated' && payload.content) {
+            // Debounce burst updates (Edge Case E10)
+            if (burstTimer) clearTimeout(burstTimer);
+            burstTimer = setTimeout(() => {
+              handleIngestChat(payload.content);
+            }, config.runtime.liveBurstDebounceMs);
+          }
+        } catch {
+          // ignore malformed SSE
+        }
+      };
+    } catch {
+      // Ingest server not running
+    }
+
+    return () => {
+      if (burstTimer) clearTimeout(burstTimer);
+      sse?.close();
+    };
+  }, [config.runtime.liveBurstDebounceMs]);
+
+  // 3. Real-Time Clock Tick: Rescores time-sensitive deadlines as time passes
   useEffect(() => {
     const timer = setInterval(() => {
       const now = new Date();
       setCurrentTime(now);
 
-      // Rescore items if we have active data
       if (items.length > 0) {
         setItems(prevItems => rescoreAllItems(prevItems, config, now));
       }
-    }, 5000); // 5-second tick interval
+    }, 5000);
 
     return () => clearInterval(timer);
   }, [items.length, config]);
 
-  // 3. Pipeline Ingestion Handler
+  // 4. Global Keyboard Shortcuts (Cmd+K, j/k, x, s, Esc)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trap typing in input/textarea
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+        if (e.key === 'Escape') {
+          setIsCommandPaletteOpen(false);
+          setIsPrivacyProofOpen(false);
+          setIsWhyDrawerOpen(false);
+          setIsSettingsOpen(false);
+          setIsBriefingOpen(false);
+          setSourceViewerTargetId(null);
+        }
+        return;
+      }
+
+      // Cmd+K or Ctrl+K -> Command Palette
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsCommandPaletteOpen(prev => !prev);
+        return;
+      }
+
+      // Navigation: j (next item), k (prev item)
+      if (e.key === 'j') {
+        e.preventDefault();
+        setSelectedItemIndex(prev => Math.min(items.length - 1, prev + 1));
+      } else if (e.key === 'k') {
+        e.preventDefault();
+        setSelectedItemIndex(prev => Math.max(0, prev - 1));
+      }
+
+      // Toggle done: x
+      if (e.key === 'x' && items.length > 0) {
+        e.preventDefault();
+        const currentItem = items[selectedItemIndex];
+        if (currentItem) {
+          handleToggleStatus(currentItem.id);
+        }
+      }
+
+      // Source jump: s
+      if (e.key === 's' && items.length > 0) {
+        e.preventDefault();
+        const currentItem = items[selectedItemIndex];
+        if (currentItem && currentItem.evidence[0]) {
+          setSourceViewerTargetId(currentItem.evidence[0].messageId);
+        }
+      }
+
+      // Escape: close any modal
+      if (e.key === 'Escape') {
+        setIsCommandPaletteOpen(false);
+        setIsPrivacyProofOpen(false);
+        setIsWhyDrawerOpen(false);
+        setIsSettingsOpen(false);
+        setIsBriefingOpen(false);
+        setSourceViewerTargetId(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [items, selectedItemIndex]);
+
+  // 5. Ingest Pipeline Execution
   const handleIngestChat = async (rawContent: string) => {
     setIsLoading(true);
-    setProgressStage('Ingesting chat data...');
+    setProgressStage('Ingesting chat messages...');
 
     try {
       const result = await runTriagePipeline({
@@ -161,8 +241,8 @@ export const App: React.FC = () => {
       setConversationState(result.conversationState);
       setItems(result.items);
       setSummary(result.summary);
+      setSelectedItemIndex(0);
 
-      // Persist locally
       await localStore.saveSession(
         result.messages,
         result.items,
@@ -177,7 +257,7 @@ export const App: React.FC = () => {
     }
   };
 
-  // 4. Update Config from Why Drawer (Live Rescore)
+  // 6. Config update from Why Drawer
   const handleUpdateConfig = (newConfig: AppConfig) => {
     setConfig(newConfig);
     localStore.saveConfig(newConfig);
@@ -186,11 +266,10 @@ export const App: React.FC = () => {
     }
   };
 
-  // 5. Update Profile from Settings
+  // 7. Profile update from Settings
   const handleSaveProfile = async (newProfile: IdentityProfile) => {
     setProfile(newProfile);
     await localStore.saveIdentityProfile(newProfile);
-    // Re-run pipeline if messages already exist to re-evaluate mentions
     if (messages.length > 0) {
       const result = await runTriagePipeline({
         existingMessages: messages,
@@ -205,7 +284,7 @@ export const App: React.FC = () => {
     }
   };
 
-  // 6. Manual Cursor movement
+  // 8. Scrub / Set Cursor from Timeline or Citation
   const handleSetManualCursor = async (messageId: string) => {
     if (messages.length === 0) return;
     const userAliases = [...profile.names, ...profile.aliases, ...profile.handles];
@@ -223,7 +302,7 @@ export const App: React.FC = () => {
     setSummary(result.summary);
   };
 
-  // 7. Toggle Item status (Done/Dismiss)
+  // 9. Toggle Item status (Done/Reopen)
   const handleToggleStatus = (itemId: string) => {
     setItems(prev =>
       prev.map(it => {
@@ -244,7 +323,7 @@ export const App: React.FC = () => {
     );
   };
 
-  // 8. 1-Click Wipe All Data
+  // 10. Wipe all local data
   const handleWipeData = () => {
     localStore.wipeAllData();
     setMessages([]);
@@ -254,13 +333,16 @@ export const App: React.FC = () => {
   };
 
   const hasData = messages.length > 0;
+  const activeSelectedId = items[selectedItemIndex]?.id || null;
 
   return (
-    <div style={{ minHeight: '100vh', padding: '20px', maxWidth: '1440px', margin: '0 auto' }}>
+    <div style={{ minHeight: '100vh', padding: '16px 24px', maxWidth: '1440px', margin: '0 auto' }}>
       <Header
         egressStats={egressStats}
         runtimeStatus={runtimeStatus}
         isLiveStreamConnected={isLiveStreamConnected}
+        onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+        onOpenExecutiveBriefing={() => setIsBriefingOpen(true)}
         onOpenPrivacyProof={() => setIsPrivacyProofOpen(true)}
         onOpenWhyDrawer={() => setIsWhyDrawerOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
@@ -270,10 +352,22 @@ export const App: React.FC = () => {
 
       {hasData && summary && conversationState ? (
         <main>
+          {/* Executive Summary Card */}
           <SummaryCard summary={summary} conversationState={conversationState} />
+
+          {/* Activity Velocity & Temporal Histogram Scrubber */}
+          <TimelineVelocityChart
+            messages={messages}
+            items={items}
+            conversationState={conversationState}
+            onSetCursor={handleSetManualCursor}
+          />
+
+          {/* Triage Perspectives (Kanban / Compact List) */}
           <TriageLanes
             items={items}
             currentTime={currentTime}
+            selectedItemId={activeSelectedId}
             onJumpToSource={msgId => setSourceViewerTargetId(msgId)}
             onToggleStatus={handleToggleStatus}
             onFeedback={() => {}}
@@ -287,7 +381,32 @@ export const App: React.FC = () => {
         />
       )}
 
-      {/* Source Viewer Modal */}
+      {/* Command Palette Modal (Cmd+K) */}
+      <CommandPaletteModal
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        items={items}
+        onSelectItem={item => {
+          const idx = items.findIndex(it => it.id === item.id);
+          if (idx !== -1) setSelectedItemIndex(idx);
+          if (item.evidence[0]) setSourceViewerTargetId(item.evidence[0].messageId);
+        }}
+        onOpenPrivacyProof={() => setIsPrivacyProofOpen(true)}
+        onOpenWhyDrawer={() => setIsWhyDrawerOpen(true)}
+        onCopyBriefing={() => setIsBriefingOpen(true)}
+        onWipeData={handleWipeData}
+      />
+
+      {/* Executive Standup Briefing Exporter Modal */}
+      <ExecutiveBriefingModal
+        isOpen={isBriefingOpen}
+        onClose={() => setIsBriefingOpen(false)}
+        summary={summary}
+        items={items}
+        messages={messages}
+      />
+
+      {/* Source Verification Context Modal */}
       <SourceViewerModal
         isOpen={!!sourceViewerTargetId}
         onClose={() => setSourceViewerTargetId(null)}
@@ -297,7 +416,7 @@ export const App: React.FC = () => {
         currentCursorId={conversationState?.cursorMessageId}
       />
 
-      {/* Why Drawer (Scoring Sliders) */}
+      {/* Scoring Weights Why Drawer */}
       <WhyDrawer
         isOpen={isWhyDrawerOpen}
         onClose={() => setIsWhyDrawerOpen(false)}
@@ -305,14 +424,14 @@ export const App: React.FC = () => {
         onUpdateConfig={handleUpdateConfig}
       />
 
-      {/* Privacy Proof Modal */}
+      {/* Local-First Privacy Proof Modal */}
       <PrivacyProofModal
         isOpen={isPrivacyProofOpen}
         onClose={() => setIsPrivacyProofOpen(false)}
         stats={egressStats}
       />
 
-      {/* Settings Modal */}
+      {/* Identity & Runtime Settings Modal */}
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}

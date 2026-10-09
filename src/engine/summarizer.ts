@@ -49,25 +49,25 @@ export function generateDeterministicSummary(
 
   if (questions.length > 0) {
     summaryParts.push(
-      `🚨 You have ${questions.length} unanswered question${questions.length > 1 ? 's' : ''} awaiting your direct reply.`
+      `Pending: You have ${questions.length} unanswered question${questions.length > 1 ? 's' : ''} awaiting your direct reply.`
     );
   }
 
   if (deadlines.length > 0) {
     const overdue = deadlines.filter(d => d.status === 'overdue');
     if (overdue.length > 0) {
-      summaryParts.push(`⚠️ ${overdue.length} deadline${overdue.length > 1 ? 's are' : ' is'} overdue!`);
+      summaryParts.push(`Alert: ${overdue.length} deadline${overdue.length > 1 ? 's are' : ' is'} overdue!`);
     } else {
-      summaryParts.push(`⏳ ${deadlines.length} upcoming deadline${deadlines.length > 1 ? 's' : ''} noted.`);
+      summaryParts.push(`Schedule: ${deadlines.length} upcoming deadline${deadlines.length > 1 ? 's' : ''} noted.`);
     }
   }
 
   if (decisions.length > 0) {
-    summaryParts.push(`⚖️ ${decisions.length} decision${decisions.length > 1 ? 's were' : ' was'} agreed upon.`);
+    summaryParts.push(`Consensus: ${decisions.length} decision${decisions.length > 1 ? 's were' : ' was'} agreed upon.`);
   }
 
   if (actionItems.length > 0) {
-    summaryParts.push(`📋 ${actionItems.length} action item${actionItems.length > 1 ? 's' : ''} assigned.`);
+    summaryParts.push(`Tasks: ${actionItems.length} action item${actionItems.length > 1 ? 's' : ''} assigned.`);
   }
 
   const keyTopics = [

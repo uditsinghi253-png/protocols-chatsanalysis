@@ -1,11 +1,18 @@
+/**
+ * Triage Lanes & View Switcher (Kanban / Compact List)
+ * High-density layout with keyboard selection support.
+ * Zero emojis. Strictly clean typography and precision SVG indicators.
+ */
+
 import React, { useState } from 'react';
 import { Item } from '../types/schema';
 import { ItemCard } from './ItemCard';
-import { AlertCircle, Scale, Clock, UserCheck, Bookmark, ChevronDown, ChevronUp } from 'lucide-react';
+import { AlertCircle, Clock, FileText, UserCheck, ChevronDown, ChevronUp, LayoutGrid, List } from 'lucide-react';
 
 interface TriageLanesProps {
   items: Item[];
   currentTime: Date;
+  selectedItemId?: string | null;
   onJumpToSource: (messageId: string) => void;
   onToggleStatus: (itemId: string) => void;
   onFeedback: (itemId: string, isPositive: boolean) => void;
@@ -14,13 +21,15 @@ interface TriageLanesProps {
 export const TriageLanes: React.FC<TriageLanesProps> = ({
   items,
   currentTime,
+  selectedItemId,
   onJumpToSource,
   onToggleStatus,
   onFeedback,
 }) => {
+  const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
   const [fyiExpanded, setFyiExpanded] = useState(false);
 
-  // Categorize items into distinct lanes
+  // Categorize items
   const actionItems = items.filter(
     it => it.kind === 'question_for_user' || (it.urgency.level === 'critical' && it.kind !== 'deadline')
   );
@@ -42,139 +51,211 @@ export const TriageLanes: React.FC<TriageLanesProps> = ({
   );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      {/* 4 Primary Responsive Grid Lanes */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-          gap: '20px',
-        }}
-      >
-        {/* Lane 1: Needs Action Now */}
-        <div className="glass-panel" style={{ padding: '16px', borderTop: '3px solid #ef4444' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <AlertCircle size={18} color="#ef4444" />
-              <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#fff' }}>Needs Action Now</h3>
-            </div>
-            <span style={{ fontSize: '11px', fontWeight: '700', padding: '2px 8px', borderRadius: '10px', background: 'var(--color-critical-bg)', color: '#ef4444' }}>
-              {actionItems.length}
-            </span>
-          </div>
-
-          {actionItems.length === 0 ? (
-            <div style={{ padding: '24px 12px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
-              🎉 No urgent asks or open questions pending.
-            </div>
-          ) : (
-            actionItems.map(item => (
-              <ItemCard
-                key={item.id}
-                item={item}
-                currentTime={currentTime}
-                onJumpToSource={onJumpToSource}
-                onToggleStatus={onToggleStatus}
-                onFeedback={onFeedback}
-              />
-            ))
-          )}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      {/* View Switcher Bar */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '12px', borderBottom: '1px solid var(--border-hairline)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)' }}>
+            Triage Perspective
+          </span>
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+            ({items.length} items extracted)
+          </span>
         </div>
 
-        {/* Lane 2: Deadlines (Live Countdowns) */}
-        <div className="glass-panel" style={{ padding: '16px', borderTop: '3px solid #f59e0b' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Clock size={18} color="#f59e0b" />
-              <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#fff' }}>Deadlines</h3>
-            </div>
-            <span style={{ fontSize: '11px', fontWeight: '700', padding: '2px 8px', borderRadius: '10px', background: 'var(--color-high-bg)', color: '#f59e0b' }}>
-              {deadlines.length}
-            </span>
-          </div>
-
-          {deadlines.length === 0 ? (
-            <div style={{ padding: '24px 12px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
-              No upcoming deadlines mentioned in this segment.
-            </div>
-          ) : (
-            deadlines.map(item => (
-              <ItemCard
-                key={item.id}
-                item={item}
-                currentTime={currentTime}
-                onJumpToSource={onJumpToSource}
-                onToggleStatus={onToggleStatus}
-                onFeedback={onFeedback}
-              />
-            ))
-          )}
-        </div>
-
-        {/* Lane 3: Decisions Made */}
-        <div className="glass-panel" style={{ padding: '16px', borderTop: '3px solid #6366f1' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Scale size={18} color="#818cf8" />
-              <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#fff' }}>Decisions Made</h3>
-            </div>
-            <span style={{ fontSize: '11px', fontWeight: '700', padding: '2px 8px', borderRadius: '10px', background: 'rgba(99, 102, 241, 0.15)', color: '#a5b4fc' }}>
-              {decisions.length}
-            </span>
-          </div>
-
-          {decisions.length === 0 ? (
-            <div style={{ padding: '24px 12px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
-              No consensus decisions reached in unread messages.
-            </div>
-          ) : (
-            decisions.map(item => (
-              <ItemCard
-                key={item.id}
-                item={item}
-                currentTime={currentTime}
-                onJumpToSource={onJumpToSource}
-                onToggleStatus={onToggleStatus}
-                onFeedback={onFeedback}
-              />
-            ))
-          )}
-        </div>
-
-        {/* Lane 4: Mentions of You */}
-        <div className="glass-panel" style={{ padding: '16px', borderTop: '3px solid #10b981' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <UserCheck size={18} color="#10b981" />
-              <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#fff' }}>Mentions of You</h3>
-            </div>
-            <span style={{ fontSize: '11px', fontWeight: '700', padding: '2px 8px', borderRadius: '10px', background: 'var(--color-success-bg)', color: '#10b981' }}>
-              {mentions.length}
-            </span>
-          </div>
-
-          {mentions.length === 0 ? (
-            <div style={{ padding: '24px 12px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
-              No direct mentions or assignments found for your alias.
-            </div>
-          ) : (
-            mentions.map(item => (
-              <ItemCard
-                key={item.id}
-                item={item}
-                currentTime={currentTime}
-                onJumpToSource={onJumpToSource}
-                onToggleStatus={onToggleStatus}
-                onFeedback={onFeedback}
-              />
-            ))
-          )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(255, 255, 255, 0.04)', padding: '3px', borderRadius: '6px', border: '1px solid var(--border-hairline)' }}>
+          <button
+            onClick={() => setViewMode('kanban')}
+            style={{
+              padding: '4px 10px',
+              borderRadius: '4px',
+              background: viewMode === 'kanban' ? 'var(--bg-surface-hover)' : 'transparent',
+              border: 'none',
+              color: viewMode === 'kanban' ? '#fff' : 'var(--text-muted)',
+              fontSize: '11px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px',
+            }}
+          >
+            <LayoutGrid size={12} />
+            <span>Kanban</span>
+          </button>
+          <button
+            onClick={() => setViewMode('list')}
+            style={{
+              padding: '4px 10px',
+              borderRadius: '4px',
+              background: viewMode === 'list' ? 'var(--bg-surface-hover)' : 'transparent',
+              border: 'none',
+              color: viewMode === 'list' ? '#fff' : 'var(--text-muted)',
+              fontSize: '11px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px',
+            }}
+          >
+            <List size={12} />
+            <span>List</span>
+          </button>
         </div>
       </div>
 
-      {/* Collapsible FYI / Background Context Lane */}
+      {/* Mode A: Kanban View */}
+      {viewMode === 'kanban' ? (
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gap: '16px',
+          }}
+        >
+          {/* Lane 1: Needs Action Now */}
+          <div className="linear-panel" style={{ padding: '14px', borderTop: '2px solid var(--crit)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <AlertCircle size={14} color="var(--crit)" />
+                <h3 style={{ fontSize: '13px', fontWeight: '700', color: '#fff' }}>Needs Action Now</h3>
+              </div>
+              <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: '700', padding: '1px 6px', borderRadius: '3px', background: 'var(--crit-subtle)', color: 'var(--crit)' }}>
+                {actionItems.length}
+              </span>
+            </div>
+
+            {actionItems.length === 0 ? (
+              <div style={{ padding: '24px 12px', textAlign: 'center', color: 'var(--text-faint)', fontSize: '12px' }}>
+                No critical requests or unanswered questions pending.
+              </div>
+            ) : (
+              actionItems.map(item => (
+                <ItemCard
+                  key={item.id}
+                  item={item}
+                  currentTime={currentTime}
+                  isSelected={item.id === selectedItemId}
+                  onJumpToSource={onJumpToSource}
+                  onToggleStatus={onToggleStatus}
+                  onFeedback={onFeedback}
+                />
+              ))
+            )}
+          </div>
+
+          {/* Lane 2: Deadlines (Live Countdowns) */}
+          <div className="linear-panel" style={{ padding: '14px', borderTop: '2px solid var(--warn)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Clock size={14} color="var(--warn)" />
+                <h3 style={{ fontSize: '13px', fontWeight: '700', color: '#fff' }}>Deadlines</h3>
+              </div>
+              <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: '700', padding: '1px 6px', borderRadius: '3px', background: 'var(--warn-subtle)', color: 'var(--warn)' }}>
+                {deadlines.length}
+              </span>
+            </div>
+
+            {deadlines.length === 0 ? (
+              <div style={{ padding: '24px 12px', textAlign: 'center', color: 'var(--text-faint)', fontSize: '12px' }}>
+                No impending deadlines extracted from this timeframe.
+              </div>
+            ) : (
+              deadlines.map(item => (
+                <ItemCard
+                  key={item.id}
+                  item={item}
+                  currentTime={currentTime}
+                  isSelected={item.id === selectedItemId}
+                  onJumpToSource={onJumpToSource}
+                  onToggleStatus={onToggleStatus}
+                  onFeedback={onFeedback}
+                />
+              ))
+            )}
+          </div>
+
+          {/* Lane 3: Decisions Made */}
+          <div className="linear-panel" style={{ padding: '14px', borderTop: '2px solid var(--accent)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <FileText size={14} color="var(--accent)" />
+                <h3 style={{ fontSize: '13px', fontWeight: '700', color: '#fff' }}>Decisions Reached</h3>
+              </div>
+              <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: '700', padding: '1px 6px', borderRadius: '3px', background: 'var(--accent-subtle)', color: 'var(--accent)' }}>
+                {decisions.length}
+              </span>
+            </div>
+
+            {decisions.length === 0 ? (
+              <div style={{ padding: '24px 12px', textAlign: 'center', color: 'var(--text-faint)', fontSize: '12px' }}>
+                No explicit consensus decisions finalized.
+              </div>
+            ) : (
+              decisions.map(item => (
+                <ItemCard
+                  key={item.id}
+                  item={item}
+                  currentTime={currentTime}
+                  isSelected={item.id === selectedItemId}
+                  onJumpToSource={onJumpToSource}
+                  onToggleStatus={onToggleStatus}
+                  onFeedback={onFeedback}
+                />
+              ))
+            )}
+          </div>
+
+          {/* Lane 4: Mentions of You */}
+          <div className="linear-panel" style={{ padding: '14px', borderTop: '2px solid var(--success)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <UserCheck size={14} color="var(--success)" />
+                <h3 style={{ fontSize: '13px', fontWeight: '700', color: '#fff' }}>Mentions of You</h3>
+              </div>
+              <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: '700', padding: '1px 6px', borderRadius: '3px', background: 'var(--success-subtle)', color: 'var(--success)' }}>
+                {mentions.length}
+              </span>
+            </div>
+
+            {mentions.length === 0 ? (
+              <div style={{ padding: '24px 12px', textAlign: 'center', color: 'var(--text-faint)', fontSize: '12px' }}>
+                No direct mentions or assignments tagged to your alias.
+              </div>
+            ) : (
+              mentions.map(item => (
+                <ItemCard
+                  key={item.id}
+                  item={item}
+                  currentTime={currentTime}
+                  isSelected={item.id === selectedItemId}
+                  onJumpToSource={onJumpToSource}
+                  onToggleStatus={onToggleStatus}
+                  onFeedback={onFeedback}
+                />
+              ))
+            )}
+          </div>
+        </div>
+      ) : (
+        /* Mode B: Compact List View (Linear / Superhuman Table) */
+        <div className="linear-panel" style={{ padding: '12px' }}>
+          {items.map(item => (
+            <ItemCard
+              key={item.id}
+              item={item}
+              currentTime={currentTime}
+              isSelected={item.id === selectedItemId}
+              onJumpToSource={onJumpToSource}
+              onToggleStatus={onToggleStatus}
+              onFeedback={onFeedback}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Background Context & FYI Section */}
       {fyiItems.length > 0 && (
-        <div className="glass-panel" style={{ padding: '16px' }}>
+        <div className="linear-panel" style={{ padding: '14px' }}>
           <button
             onClick={() => setFyiExpanded(!fyiExpanded)}
             style={{
@@ -186,24 +267,22 @@ export const TriageLanes: React.FC<TriageLanesProps> = ({
               border: 'none',
               color: 'var(--text-secondary)',
               cursor: 'pointer',
-              fontSize: '14px',
+              fontSize: '13px',
               fontWeight: '600',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Bookmark size={16} />
-              <span>General Background & FYI ({fyiItems.length} items)</span>
-            </div>
-            {fyiExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            <span>Background Context & FYI ({fyiItems.length} items)</span>
+            {fyiExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
           </button>
 
           {fyiExpanded && (
-            <div style={{ marginTop: '14px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px' }}>
+            <div style={{ marginTop: '14px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '10px' }}>
               {fyiItems.map(item => (
                 <ItemCard
                   key={item.id}
                   item={item}
                   currentTime={currentTime}
+                  isSelected={item.id === selectedItemId}
                   onJumpToSource={onJumpToSource}
                   onToggleStatus={onToggleStatus}
                   onFeedback={onFeedback}

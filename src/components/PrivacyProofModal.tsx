@@ -25,7 +25,7 @@ export const PrivacyProofModal: React.FC<PrivacyProofModalProps> = ({
       setTestResult('CRITICAL ERROR: Request was not blocked!');
     } catch (err: unknown) {
       setTestResult(
-        `🛡️ SUCCESS: Egress Guard intercepted & aborted external call: "${err instanceof Error ? err.message : String(err)}"`
+        `[EGRESS GUARD BLOCKED] Intercepted & aborted external call: "${err instanceof Error ? err.message : String(err)}"`
       );
     }
   };
@@ -105,7 +105,7 @@ export const PrivacyProofModal: React.FC<PrivacyProofModalProps> = ({
                 Non-Loopback Egress
               </div>
               <div style={{ fontSize: '10px', color: '#10b981', marginTop: '2px', fontWeight: '600' }}>
-                ✓ 100% BLOCKED
+                100% BLOCKED
               </div>
             </div>
 

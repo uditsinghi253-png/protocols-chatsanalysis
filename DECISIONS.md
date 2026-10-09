@@ -65,5 +65,19 @@ This log records every significant architectural, stack, design, and algorithmic
 - **Alternatives Considered:** Monolithic LLM prompt with zero deterministic fallback (rejected: fragile and slow on 8GB M1).
 - **Reason:** Guarantees instant sub-second triage, zero cloud leaks, and provable grounding for demo day.
 
+---
+
+## 0006 - Professional Linear-Grade Redesign, Visual Analytics, and Zero-Emoji Policy
+- **Date:** 2026-10-09
+- **Decision:**
+  - **Aesthetics & Tone:** Completely eliminate emojis and playful icons in favor of a clean, high-density, Linear/Raycast/Vercel-inspired UI. Monochromatic dark slate palette with precision SVG micro-icons (`lucide-react`).
+  - **Active Local Inference Engine:** Introduce an integrated client-side inference worker and real-time loopback auto-sync. Rebrand engine state to clearly convey active real-time local processing ("Local Real-Time Engine: Active").
+  - **Visual Statistics & Velocity Matrix:** Add interactive temporal message velocity histogram (allowing users to scrub the timeline to set the unread cursor visually), participant obligation table, and urgency quantile distribution chart.
+  - **Keyboard Navigation & Command Palette:** Add `Cmd+K` command menu, keyboard shortcuts (`j`/`k` item navigation, `x` complete, `s` source jump), and multi-view switcher (Kanban Lanes vs. Compact List vs. Executive Briefing).
+  - **Executive Briefing Generator:** Add 1-click exportable markdown briefing summarizing owners, deadlines, and citations for team standups.
+- **Alternatives Considered:** Toy/conversational UI with avatars and emojis (rejected per user directive: "no emojis or gibberish, solid defendable production ready MVP").
+- **Reason:** Positions the micro-app as an executive-grade productivity tool that immediately commands respect from judges.
+
+
 
 

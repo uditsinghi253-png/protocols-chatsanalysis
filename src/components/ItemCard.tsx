@@ -1,6 +1,11 @@
+/**
+ * Executive Item Card Component
+ * Linear-grade card with precision typography, grounded evidence, and live countdowns.
+ * Zero emojis. Strictly clean micro-icons and structured data badges.
+ */
+
 import React from 'react';
 import {
-  AlertTriangle,
   Clock,
   CheckCircle,
   FileText,
@@ -9,12 +14,14 @@ import {
   ExternalLink,
   ThumbsUp,
   ThumbsDown,
+  RotateCcw,
 } from 'lucide-react';
 import { Item } from '../types/schema';
 
 interface ItemCardProps {
   item: Item;
   currentTime: Date;
+  isSelected?: boolean;
   onJumpToSource: (messageId: string) => void;
   onToggleStatus: (itemId: string) => void;
   onFeedback: (itemId: string, isPositive: boolean) => void;
@@ -23,11 +30,12 @@ interface ItemCardProps {
 export const ItemCard: React.FC<ItemCardProps> = ({
   item,
   currentTime,
+  isSelected,
   onJumpToSource,
   onToggleStatus,
   onFeedback,
 }) => {
-  // Compute live deadline remaining
+  // Live deadline calculation
   let countdownText: string | null = null;
   let isOverdue = false;
 
@@ -48,96 +56,104 @@ export const ItemCard: React.FC<ItemCardProps> = ({
     }
   }
 
-  // Visual cues based on urgency level
-  const urgencyStyles = {
+  const isSuperseded = item.status === 'superseded';
+  const isDone = item.status === 'done';
+
+  // Urgency styling definition
+  const urgencyConfig = {
     critical: {
-      border: 'rgba(239, 68, 68, 0.4)',
-      bg: 'var(--color-critical-bg)',
-      color: 'var(--color-critical)',
+      color: 'var(--crit)',
+      bg: 'var(--crit-subtle)',
+      border: 'var(--crit-border)',
       label: 'CRITICAL',
     },
     high: {
-      border: 'rgba(245, 158, 11, 0.4)',
-      bg: 'var(--color-high-bg)',
-      color: 'var(--color-high)',
+      color: 'var(--warn)',
+      bg: 'var(--warn-subtle)',
+      border: 'var(--warn-border)',
       label: 'HIGH',
     },
     normal: {
-      border: 'rgba(59, 130, 246, 0.3)',
-      bg: 'var(--color-normal-bg)',
-      color: 'var(--color-normal)',
+      color: 'var(--info)',
+      bg: 'var(--info-subtle)',
+      border: 'var(--info-border)',
       label: 'NORMAL',
     },
     low: {
-      border: 'rgba(148, 163, 184, 0.2)',
-      bg: 'rgba(148, 163, 184, 0.08)',
-      color: '#94a3b8',
+      color: 'var(--text-muted)',
+      bg: 'rgba(255, 255, 255, 0.04)',
+      border: 'var(--border-hairline)',
       label: 'LOW',
     },
   }[item.urgency.level];
 
-  // Kind icon
   const kindIcon = {
-    action_item: <CheckCircle size={15} color="#10b981" />,
-    decision: <FileText size={15} color="#818cf8" />,
-    deadline: <Clock size={15} color={isOverdue ? '#ef4444' : '#f59e0b'} />,
-    question_for_user: <AlertTriangle size={15} color="#f59e0b" />,
-    important_message: <FileText size={15} color="#94a3b8" />,
+    action_item: <CheckCircle size={14} color="var(--success)" />,
+    decision: <FileText size={14} color="var(--accent)" />,
+    deadline: <Clock size={14} color={isOverdue ? 'var(--crit)' : 'var(--warn)'} />,
+    question_for_user: <Clock size={14} color="var(--crit)" />,
+    important_message: <FileText size={14} color="var(--text-muted)" />,
   }[item.kind];
-
-  const isDone = item.status === 'done';
 
   return (
     <div
-      className="glass-panel"
+      className={`linear-card ${isSelected ? 'linear-card-selected' : ''}`}
       style={{
-        padding: '16px',
-        marginBottom: '12px',
-        border: `1px solid ${urgencyStyles.border}`,
-        opacity: isDone ? 0.6 : 1,
-        transition: 'all 0.2s ease',
-        background: isDone ? 'rgba(15, 23, 42, 0.4)' : 'var(--bg-card)',
+        padding: '14px',
+        marginBottom: '10px',
+        opacity: isDone || isSuperseded ? 0.6 : 1,
+        borderLeft: `3px solid ${isSuperseded ? 'var(--text-muted)' : urgencyConfig.color}`,
+        position: 'relative',
       }}
     >
-      {/* Header Row: Title & Badges */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px', marginBottom: '8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      {/* Top Header Line */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px', marginBottom: '6px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           {kindIcon}
-          <h4 style={{ fontSize: '14px', fontWeight: '600', color: isDone ? '#94a3b8' : '#fff', textDecoration: isDone ? 'line-through' : 'none' }}>
+          <h4
+            style={{
+              fontSize: '13px',
+              fontWeight: '600',
+              color: isDone ? 'var(--text-muted)' : '#fff',
+              textDecoration: isDone || isSuperseded ? 'line-through' : 'none',
+              lineHeight: '1.3',
+            }}
+          >
             {item.title}
           </h4>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          {/* Urgency Badge */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexShrink: 0 }}>
+          {/* Urgency Pill */}
           <span
             style={{
-              fontSize: '10px',
+              fontSize: '9px',
+              fontFamily: 'var(--font-mono)',
               fontWeight: '700',
-              padding: '2px 8px',
-              borderRadius: '12px',
-              background: urgencyStyles.bg,
-              color: urgencyStyles.color,
-              border: `1px solid ${urgencyStyles.border}`,
+              padding: '2px 6px',
+              borderRadius: '3px',
+              background: urgencyConfig.bg,
+              color: urgencyConfig.color,
+              border: `1px solid ${urgencyConfig.border}`,
               letterSpacing: '0.04em',
             }}
           >
-            {urgencyStyles.label} ({(item.urgency.score).toFixed(2)})
+            {isSuperseded ? 'SUPERSEDED' : `${urgencyConfig.label} ${(item.urgency.score).toFixed(2)}`}
           </span>
 
           {/* Owner Chip */}
           {item.owner && (
             <span
               style={{
-                fontSize: '11px',
-                padding: '2px 8px',
-                borderRadius: '12px',
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid var(--border-subtle)',
+                fontSize: '10px',
+                padding: '2px 6px',
+                borderRadius: '3px',
+                background: 'rgba(255, 255, 255, 0.04)',
+                border: '1px solid var(--border-hairline)',
                 color: 'var(--text-secondary)',
-                display: 'flex',
+                display: 'inline-flex',
                 alignItems: 'center',
-                gap: '4px',
+                gap: '3px',
               }}
             >
               <User size={10} />
@@ -147,128 +163,136 @@ export const ItemCard: React.FC<ItemCardProps> = ({
         </div>
       </div>
 
-      {/* Body detail */}
-      <p style={{ fontSize: '13px', color: '#cbd5e1', lineHeight: '1.45', marginBottom: '12px' }}>
+      {/* Detail description */}
+      <p style={{ fontSize: '12px', color: '#cbd5e1', lineHeight: '1.45', marginBottom: '8px' }}>
         {item.detail}
       </p>
 
-      {/* Live Deadline / Countdown Chip */}
+      {/* Countdown or Overdue Indicator */}
       {countdownText && (
-        <div style={{ marginBottom: '10px' }}>
+        <div style={{ marginBottom: '8px' }}>
           <span
             style={{
-              fontSize: '11px',
+              fontSize: '10px',
+              fontFamily: 'var(--font-mono)',
               fontWeight: '600',
-              padding: '3px 10px',
-              borderRadius: '6px',
-              background: isOverdue ? 'rgba(239, 68, 68, 0.15)' : 'rgba(245, 158, 11, 0.15)',
-              color: isOverdue ? '#ef4444' : '#f59e0b',
-              border: `1px solid ${isOverdue ? 'rgba(239, 68, 68, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`,
+              padding: '2px 6px',
+              borderRadius: '3px',
+              background: isOverdue ? 'var(--crit-subtle)' : 'var(--warn-subtle)',
+              color: isOverdue ? 'var(--crit)' : 'var(--warn)',
+              border: `1px solid ${isOverdue ? 'var(--crit-border)' : 'var(--warn-border)'}`,
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '5px',
+              gap: '4px',
             }}
           >
-            <Clock size={11} />
-            <span>Deadline: {countdownText}</span>
+            <Clock size={10} />
+            <span>{countdownText}</span>
           </span>
+        </div>
+      )}
+
+      {/* Supersession Link Indicator (Edge Case E2) */}
+      {isSuperseded && (
+        <div style={{ marginBottom: '8px', fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <RotateCcw size={11} />
+          <span>Reversed by a subsequent decision in chat</span>
         </div>
       )}
 
       {/* Visible "Why" explanation pill */}
       <div
         style={{
-          background: 'rgba(0, 0, 0, 0.25)',
-          padding: '6px 10px',
-          borderRadius: '6px',
-          borderLeft: `3px solid ${urgencyStyles.color}`,
+          background: 'rgba(0, 0, 0, 0.3)',
+          padding: '6px 8px',
+          borderRadius: '4px',
+          border: '1px solid var(--border-hairline)',
           fontSize: '11px',
           color: 'var(--text-secondary)',
           marginBottom: '10px',
-          lineHeight: '1.4',
+          lineHeight: '1.35',
         }}
-        title="Why this item received this priority score"
+        title="Mathematical signals determining this score"
       >
-        <strong style={{ color: '#e2e8f0' }}>Why: </strong>
+        <span style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '10px' }}>WHY: </span>
         {item.urgency.explanation}
       </div>
 
-      {/* Grounded Evidence Citations */}
+      {/* Grounded Citation Evidence */}
       {item.evidence && item.evidence.length > 0 && (
-        <div style={{ marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-          <Quote size={12} color="var(--text-muted)" />
+        <div style={{ marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+          <Quote size={11} color="var(--text-muted)" />
           {item.evidence.map((ev, idx) => (
             <button
               key={idx}
               onClick={() => onJumpToSource(ev.messageId)}
               style={{
                 fontSize: '11px',
-                fontStyle: 'italic',
-                padding: '2px 8px',
-                borderRadius: '4px',
-                background: 'rgba(99, 102, 241, 0.1)',
-                border: '1px solid rgba(99, 102, 241, 0.2)',
-                color: '#a5b4fc',
+                padding: '2px 7px',
+                borderRadius: '3px',
+                background: 'rgba(255, 255, 255, 0.04)',
+                border: '1px solid var(--border-hairline)',
+                color: 'var(--text-secondary)',
                 cursor: 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '4px',
               }}
-              title="Click to jump and view quote in source chat"
+              title="Click to jump and verify source message quote"
             >
-              <span>"{ev.quote.length > 40 ? ev.quote.substring(0, 40) + '...' : ev.quote}"</span>
+              <span>"{ev.quote.length > 36 ? ev.quote.substring(0, 36) + '...' : ev.quote}"</span>
               <ExternalLink size={10} />
             </button>
           ))}
         </div>
       )}
 
-      {/* Actions Row */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid var(--border-subtle)', paddingTop: '10px' }}>
+      {/* Card Action Row */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid var(--border-hairline)', paddingTop: '8px' }}>
         <button
           onClick={() => onToggleStatus(item.id)}
           style={{
             fontSize: '11px',
-            padding: '4px 10px',
-            borderRadius: '6px',
-            background: isDone ? 'rgba(255, 255, 255, 0.05)' : 'rgba(16, 185, 129, 0.12)',
-            border: `1px solid ${isDone ? 'var(--border-subtle)' : 'rgba(16, 185, 129, 0.3)'}`,
-            color: isDone ? 'var(--text-muted)' : '#10b981',
+            padding: '3px 8px',
+            borderRadius: '4px',
+            background: isDone ? 'rgba(255, 255, 255, 0.04)' : 'var(--success-subtle)',
+            border: `1px solid ${isDone ? 'var(--border-hairline)' : 'var(--success-border)'}`,
+            color: isDone ? 'var(--text-muted)' : 'var(--success)',
             cursor: 'pointer',
             fontWeight: '600',
           }}
         >
-          {isDone ? 'Reopen Task' : 'Mark Done'}
+          {isDone ? 'Reopen' : 'Mark Done'}
         </button>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
           <button
             onClick={() => onFeedback(item.id, true)}
             style={{
-              padding: '4px 8px',
-              borderRadius: '6px',
+              padding: '3px 6px',
+              borderRadius: '4px',
               background: 'transparent',
-              border: '1px solid var(--border-subtle)',
+              border: '1px solid var(--border-hairline)',
               color: 'var(--text-muted)',
               cursor: 'pointer',
             }}
-            title="Accurate priority"
+            title="Confirm priority accuracy"
           >
-            <ThumbsUp size={12} />
+            <ThumbsUp size={11} />
           </button>
           <button
             onClick={() => onFeedback(item.id, false)}
             style={{
-              padding: '4px 8px',
-              borderRadius: '6px',
+              padding: '3px 6px',
+              borderRadius: '4px',
               background: 'transparent',
-              border: '1px solid var(--border-subtle)',
+              border: '1px solid var(--border-hairline)',
               color: 'var(--text-muted)',
               cursor: 'pointer',
             }}
-            title="Inaccurate priority"
+            title="Flag priority inaccuracy"
           >
-            <ThumbsDown size={12} />
+            <ThumbsDown size={11} />
           </button>
         </div>
       </div>
