@@ -13,6 +13,8 @@ permissions:
   contents: read
   deployments: write
   packages: read
+  pages: write
+  id-token: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -59,13 +61,13 @@ jobs:
           retention-days: 7
 
   deployment-protection-gate:
-    name: Production Deployment Protection
+    name: Production Deployment Protection & Live Deploy
     needs: quality-and-security-gates
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     environment:
-      name: production
-      url: https://github.com/${{ github.repository }}
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
       - name: Checkout Code
@@ -83,3 +85,15 @@ jobs:
           test -f dist/index.html || (echo "Missing dist/index.html" && exit 1)
           grep -q "Content-Security-Policy" dist/index.html || (echo "CSP missing in dist/index.html" && exit 1)
           echo "Production deployment protection passed successfully."
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist/
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -83,6 +83,7 @@ export const App: React.FC = () => {
   triageScopeRef.current = triageScope;
   const convStateRef = useRef(conversationState);
   convStateRef.current = conversationState;
+  const liveSimulationTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // UI Modal Controls
   const [isPrivacyProofOpen, setIsPrivacyProofOpen] = useState(false);
@@ -104,6 +105,15 @@ export const App: React.FC = () => {
     () => computeWrappedAnalytics(messages, items, profile),
     [messages, items, profile]
   );
+
+  // Clean up any live simulation interval on unmount
+  useEffect(() => {
+    return () => {
+      if (liveSimulationTimerRef.current) {
+        clearInterval(liveSimulationTimerRef.current);
+      }
+    };
+  }, []);
 
   // 1. Install Egress Guard and initialize session on mount
   useEffect(() => {
@@ -153,6 +163,16 @@ export const App: React.FC = () => {
   useEffect(() => {
     let sse: EventSource | null = null;
     let burstTimer: NodeJS.Timeout | null = null;
+
+    const isLocal =
+      typeof window !== 'undefined' &&
+      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+    if (!isLocal) {
+      // In deployed cloud environment, live mode runs completely in-browser
+      setIsLiveStreamConnected(true);
+      return;
+    }
 
     try {
       sse = new EventSource('http://127.0.0.1:4040/events');
@@ -336,15 +356,57 @@ export const App: React.FC = () => {
   };
 
   // 5b. 1-Click Load Real Dataset (WhatsApp - Rudra: 7,097 messages)
+  // Universal: loads bundled static chat on any cloud host, falls back to loopback daemon
   const handleLoadRealChat = async () => {
     setIsLoading(true);
     setProgressStage('Loading 7,097 messages from real WhatsApp dataset...');
     try {
-      const res = await fetch('http://127.0.0.1:4040/api/default-chat');
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      if (data.ok && data.content) {
-        await handleIngestChat(data.content);
+      let rawText = '';
+
+      // 1. Try static asset bundle (works on Vercel, Netlify, GitHub Pages, Render)
+      try {
+        const staticRes = await fetch('./data/default_chat.txt');
+        if (staticRes.ok) {
+          rawText = await staticRes.text();
+        }
+      } catch {
+        // fallback
+      }
+
+      if (!rawText) {
+        try {
+          const staticRes2 = await fetch('/data/default_chat.txt');
+          if (staticRes2.ok) {
+            rawText = await staticRes2.text();
+          }
+        } catch {
+          // fallback
+        }
+      }
+
+      // 2. Fallback to local ingest server if running on localhost
+      if (
+        !rawText &&
+        typeof window !== 'undefined' &&
+        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+      ) {
+        try {
+          const res = await fetch('http://127.0.0.1:4040/api/default-chat');
+          if (res.ok) {
+            const data = await res.json();
+            if (data.ok && data.content) {
+              rawText = data.content;
+            }
+          }
+        } catch {
+          // fallback
+        }
+      }
+
+      if (rawText && rawText.length > 50) {
+        await handleIngestChat(rawText);
+      } else {
+        console.warn('Could not locate default chat export file');
       }
     } catch (err) {
       console.warn('Real chat loading failed:', err);
@@ -355,19 +417,84 @@ export const App: React.FC = () => {
   };
 
   // 5c. Real-Time Conversational Live Simulator Toggle
+  // Universal: runs client-side simulation everywhere, synchronizing with local daemon if present
   const handleToggleLiveSimulation = async () => {
-    try {
-      if (isLiveSimulationActive) {
-        await fetch('http://127.0.0.1:4040/api/stop-live', { method: 'POST' });
-        setIsLiveSimulationActive(false);
-      } else {
-        const res = await fetch('http://127.0.0.1:4040/api/simulate-live', { method: 'POST' });
-        if (res.ok) {
-          setIsLiveSimulationActive(true);
-        }
+    if (isLiveSimulationActive) {
+      if (liveSimulationTimerRef.current) {
+        clearInterval(liveSimulationTimerRef.current);
+        liveSimulationTimerRef.current = null;
       }
-    } catch (err) {
-      console.warn('Simulation toggle failed:', err);
+      setIsLiveSimulationActive(false);
+
+      if (
+        typeof window !== 'undefined' &&
+        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+      ) {
+        try {
+          await fetch('http://127.0.0.1:4040/api/stop-live', { method: 'POST' });
+        } catch {}
+      }
+    } else {
+      setIsLiveSimulationActive(true);
+
+      const simulationScript = [
+        { sender: 'Rudra', text: 'Hey Udit, did you get a chance to check the auth service?' },
+        { sender: 'Udit', text: 'Yeah looking at it now, will deploy the fixes in 10 mins.' },
+        { sender: 'Rudra', text: 'Awesome! Can you also send over the updated API docs?' },
+        { sender: 'Udit', text: 'Sure, here: https://github.com/protocol/repo/docs' },
+        { sender: 'Rudra', text: 'Perfect. What time are we meeting tomorrow?' },
+        { sender: 'Udit', text: 'Kal subah 11am milte hai, final decision done!' },
+        { sender: 'Rudra', text: 'Sounds good, let me know once done.' },
+      ];
+
+      let step = 0;
+      if (liveSimulationTimerRef.current) clearInterval(liveSimulationTimerRef.current);
+
+      liveSimulationTimerRef.current = setInterval(() => {
+        const item = simulationScript[step % simulationScript.length];
+        setMessages(prev => {
+          const newMsg: Message = {
+            id: `msg_live_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+            conversationId: convStateRef.current?.id || 'active_chat',
+            ts: new Date().toISOString(),
+            sender: item.sender,
+            senderId: item.sender.toLowerCase().trim(),
+            text: item.text,
+            ordinal: prev.length,
+          };
+          const updated = [...prev, newMsg];
+          runTriagePipeline({
+            existingMessages: updated,
+            profile: profileRef.current,
+            config: configRef.current,
+            scope: triageScopeRef.current,
+            manualCursorId: convStateRef.current?.cursorMessageId,
+            referenceNow: new Date(),
+          }).then(result => {
+            setConversationState(result.conversationState);
+            setItems(result.items);
+            setSummary(result.summary);
+            localStore.saveSession(
+              updated,
+              result.items,
+              result.conversationState,
+              result.summary
+            );
+          });
+          return updated;
+        });
+
+        step++;
+      }, 2000);
+
+      if (
+        typeof window !== 'undefined' &&
+        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+      ) {
+        try {
+          await fetch('http://127.0.0.1:4040/api/simulate-live', { method: 'POST' });
+        } catch {}
+      }
     }
   };
 
