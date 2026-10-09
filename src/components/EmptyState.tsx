@@ -12,6 +12,7 @@ import JSZip from 'jszip';
 interface EmptyStateProps {
   onIngest: (rawContent: string) => void;
   onLoadRealChat?: () => void;
+  onLoadPreset?: (preset: 'rudra' | 'cse6' | 'maths') => void;
   isLoading: boolean;
   progressStage?: string;
 }
@@ -19,6 +20,7 @@ interface EmptyStateProps {
 export const EmptyState: React.FC<EmptyStateProps> = ({
   onIngest,
   onLoadRealChat,
+  onLoadPreset,
   isLoading,
   progressStage,
 }) => {
@@ -96,7 +98,49 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
           Isolates unread messages, extracts verified action items, tracks approaching deadlines, and resolves decisions. 100% on-device. Zero network egress.
         </p>
 
-        {onLoadRealChat && (
+        {onLoadPreset ? (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              Instant Verified WhatsApp Datasets
+            </span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              {[
+                { id: 'rudra' as const, label: 'Rudra & Udit (7,097 msgs)', subtitle: '1:1 Direct Collaboration' },
+                { id: 'cse6' as const, label: 'CSE 6 Cohort (20,964 msgs)', subtitle: '87 Participants Group' },
+                { id: 'maths' as const, label: 'Maths CSE 6 (1,242 msgs)', subtitle: '35 Members Group' },
+              ].map(p => (
+                <button
+                  key={p.id}
+                  onClick={() => onLoadPreset(p.id)}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '3px',
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.25) 0%, rgba(124, 58, 237, 0.25) 100%)',
+                    border: '1px solid rgba(124, 58, 237, 0.4)',
+                    color: '#fff',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 10px rgba(79, 70, 229, 0.15)',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Zap size={13} color="#a5b4fc" />
+                    <span>{p.label}</span>
+                  </div>
+                  <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '400' }}>
+                    {p.subtitle}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : onLoadRealChat ? (
           <div>
             <button
               onClick={onLoadRealChat}
@@ -119,7 +163,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
               <span>Load Real Chat (Rudra & Udit — 7,097 messages)</span>
             </button>
           </div>
-        )}
+        ) : null}
       </div>
 
       {isLoading ? (

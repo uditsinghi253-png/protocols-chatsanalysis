@@ -8,6 +8,8 @@ import React from 'react';
 import { Shield, Sliders, Settings, Trash2, Terminal, FileText, Command, UserX, Sparkles, Zap, Radio } from 'lucide-react';
 import { EgressStats } from '../types/schema';
 
+export type ChatPreset = 'rudra' | 'cse6' | 'maths';
+
 interface HeaderProps {
   egressStats: EgressStats;
   isLiveStreamConnected?: boolean;
@@ -21,6 +23,8 @@ interface HeaderProps {
   onOpenSettings: () => void;
   onWipeData: () => void;
   onLoadRealChat?: () => void;
+  onLoadPreset?: (preset: ChatPreset) => void;
+  activePreset?: ChatPreset;
   isLiveSimulationActive?: boolean;
   onToggleLiveSimulation?: () => void;
   hasData: boolean;
@@ -39,6 +43,8 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSettings,
   onWipeData,
   onLoadRealChat,
+  onLoadPreset,
+  activePreset = 'rudra',
   isLiveSimulationActive = false,
   onToggleLiveSimulation,
   hasData,
@@ -182,8 +188,49 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         )}
 
-        {/* 1-Click Load Real Chat Dataset */}
-        {onLoadRealChat && (
+        {/* Real Chat Dataset Presets Switcher */}
+        {onLoadPreset ? (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              background: 'rgba(255, 255, 255, 0.04)',
+              borderRadius: '6px',
+              padding: '2px',
+              border: '1px solid var(--border-hairline)',
+              gap: '2px',
+            }}
+          >
+            {[
+              { id: 'rudra' as const, label: 'Rudra (7k)', title: 'WhatsApp Direct Chat: Rudra & Udit (7,097 msgs)' },
+              { id: 'cse6' as const, label: 'CSE 6 (21k)', title: 'WhatsApp College Cohort: CSE 6 (20,964 msgs)' },
+              { id: 'maths' as const, label: 'Maths (1.2k)', title: 'WhatsApp Maths Group: Maths CSE 6 (1,242 msgs)' },
+            ].map(p => {
+              const isActive = activePreset === p.id;
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => onLoadPreset(p.id)}
+                  style={{
+                    padding: '4px 9px',
+                    borderRadius: '4px',
+                    fontSize: '11px',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: isActive ? '700' : '500',
+                    background: isActive ? 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)' : 'transparent',
+                    color: isActive ? '#fff' : 'var(--text-secondary)',
+                    border: 'none',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                  title={p.title}
+                >
+                  {p.label}
+                </button>
+              );
+            })}
+          </div>
+        ) : onLoadRealChat ? (
           <button
             onClick={onLoadRealChat}
             style={{
@@ -204,7 +251,7 @@ export const Header: React.FC<HeaderProps> = ({
             <Zap size={12} color="#818cf8" />
             <span>Load Real Chat (7,097)</span>
           </button>
-        )}
+        ) : null}
 
         {/* Real-Time Live Message Stream Simulator Toggle */}
         {onToggleLiveSimulation && (

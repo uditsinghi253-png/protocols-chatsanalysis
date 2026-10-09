@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Header } from './components/Header';
+import { Header, ChatPreset } from './components/Header';
 import { SummaryCard } from './components/SummaryCard';
 import { TimelineVelocityChart } from './components/TimelineVelocityChart';
 import { TriageLanes } from './components/TriageLanes';
@@ -44,8 +44,8 @@ export const App: React.FC = () => {
 
   // Identity Profile (User Aliases)
   const [profile, setProfile] = useState<IdentityProfile>({
-    names: ['Udit', 'Udit Singhi'],
-    aliases: ['Udit', 'Singhi'],
+    names: ['Udit', 'Udit Singhi', 'Udit Jain'],
+    aliases: ['Udit', 'Singhi', 'Jain'],
     handles: ['@udit'],
     timezone: typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'Asia/Kolkata',
     locale: typeof navigator !== 'undefined' ? navigator.language : 'en-US',
@@ -56,6 +56,7 @@ export const App: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [conversationState, setConversationState] = useState<ConversationState | null>(null);
   const [triageScope, setTriageScope] = useState<TriageScope>('last_7d');
+  const [activePreset, setActivePreset] = useState<ChatPreset>('rudra');
   const [items, setItems] = useState<Item[]>([]);
   const [summary, setSummary] = useState<TriageSummary | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -355,38 +356,43 @@ export const App: React.FC = () => {
     }
   };
 
-  // 5b. 1-Click Load Real Dataset (WhatsApp - Rudra: 7,097 messages)
+  const PRESET_FILES: Record<ChatPreset, string> = {
+    rudra: 'default_chat.txt',
+    cse6: 'cse6_chat.txt',
+    maths: 'maths_chat.txt',
+  };
+
+  // 5b. Multi-Dataset Loader (Rudra: 7k, CSE 6: 21k, Maths: 1.2k)
   // Universal: loads bundled static chat on any cloud host, falls back to loopback daemon
-  const handleLoadRealChat = async () => {
+  const handleLoadPreset = async (preset: ChatPreset = 'rudra') => {
+    setActivePreset(preset);
     setIsLoading(true);
-    setProgressStage('Loading 7,097 messages from real WhatsApp dataset...');
+    const fileName = PRESET_FILES[preset];
+    setProgressStage(`Loading real dataset (${preset.toUpperCase()})...`);
     try {
       let rawText = '';
 
       // 1. Try static asset bundle (works on Vercel, Netlify, GitHub Pages, Render)
       try {
-        const staticRes = await fetch('./data/default_chat.txt');
+        const staticRes = await fetch(`./data/${fileName}`);
         if (staticRes.ok) {
           rawText = await staticRes.text();
         }
-      } catch {
-        // fallback
-      }
+      } catch {}
 
       if (!rawText) {
         try {
-          const staticRes2 = await fetch('/data/default_chat.txt');
+          const staticRes2 = await fetch(`/data/${fileName}`);
           if (staticRes2.ok) {
             rawText = await staticRes2.text();
           }
-        } catch {
-          // fallback
-        }
+        } catch {}
       }
 
-      // 2. Fallback to local ingest server if running on localhost
+      // 2. Fallback to local ingest server if running on localhost for rudra
       if (
         !rawText &&
+        preset === 'rudra' &&
         typeof window !== 'undefined' &&
         (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
       ) {
@@ -398,15 +404,13 @@ export const App: React.FC = () => {
               rawText = data.content;
             }
           }
-        } catch {
-          // fallback
-        }
+        } catch {}
       }
 
       if (rawText && rawText.length > 50) {
         await handleIngestChat(rawText);
       } else {
-        console.warn('Could not locate default chat export file');
+        console.warn('Could not locate preset chat file:', fileName);
       }
     } catch (err) {
       console.warn('Real chat loading failed:', err);
@@ -415,6 +419,8 @@ export const App: React.FC = () => {
       setProgressStage('');
     }
   };
+
+  const handleLoadRealChat = () => handleLoadPreset('rudra');
 
   // 5c. Real-Time Conversational Live Simulator Toggle
   // Universal: runs client-side simulation everywhere, synchronizing with local daemon if present
@@ -620,6 +626,8 @@ export const App: React.FC = () => {
         onOpenSettings={() => setIsSettingsOpen(true)}
         onWipeData={handleWipeData}
         onLoadRealChat={handleLoadRealChat}
+        onLoadPreset={handleLoadPreset}
+        activePreset={activePreset}
         isLiveSimulationActive={isLiveSimulationActive}
         onToggleLiveSimulation={handleToggleLiveSimulation}
         hasData={hasData}
@@ -709,6 +717,7 @@ export const App: React.FC = () => {
         <EmptyState
           onIngest={handleIngestChat}
           onLoadRealChat={handleLoadRealChat}
+          onLoadPreset={handleLoadPreset}
           isLoading={isLoading}
           progressStage={progressStage}
         />
