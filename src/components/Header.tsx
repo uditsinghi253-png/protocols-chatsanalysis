@@ -86,8 +86,8 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '14px', fontWeight: '700', letterSpacing: '-0.02em', color: '#fff' }}>
-              What Did I Miss?
+            <span style={{ fontSize: '15px', fontWeight: '800', letterSpacing: '-0.02em', color: '#fff' }}>
+              ProtocolX
             </span>
             <span
               style={{

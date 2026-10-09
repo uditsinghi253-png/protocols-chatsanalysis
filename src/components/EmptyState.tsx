@@ -103,7 +103,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
             marginBottom: '14px',
           }}
         >
-          <span>LOCAL-FIRST CHAT ANALYSIS & TRIAGE</span>
+          <span>PROTOCOLX • LOCAL-FIRST INTELLIGENCE</span>
         </div>
         <h2 style={{ fontSize: '28px', fontWeight: '800', letterSpacing: '-0.03em', color: '#fff', marginBottom: '8px' }}>
           Select a Conversation to Analyze
