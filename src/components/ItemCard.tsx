@@ -248,22 +248,88 @@ export const ItemCard: React.FC<ItemCardProps> = ({
       )}
 
       {/* Card Action Row */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid var(--border-hairline)', paddingTop: '8px' }}>
-        <button
-          onClick={() => onToggleStatus(item.id)}
-          style={{
-            fontSize: '11px',
-            padding: '3px 8px',
-            borderRadius: '4px',
-            background: isDone ? 'rgba(255, 255, 255, 0.04)' : 'var(--success-subtle)',
-            border: `1px solid ${isDone ? 'var(--border-hairline)' : 'var(--success-border)'}`,
-            color: isDone ? 'var(--text-muted)' : 'var(--success)',
-            cursor: 'pointer',
-            fontWeight: '600',
-          }}
-        >
-          {isDone ? 'Reopen' : 'Mark Done'}
-        </button>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid var(--border-hairline)', paddingTop: '8px', flexWrap: 'wrap', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <button
+            onClick={() => onToggleStatus(item.id)}
+            style={{
+              fontSize: '11px',
+              padding: '3px 8px',
+              borderRadius: '4px',
+              background: isDone ? 'rgba(255, 255, 255, 0.04)' : 'var(--success-subtle)',
+              border: `1px solid ${isDone ? 'var(--border-hairline)' : 'var(--success-border)'}`,
+              color: isDone ? 'var(--text-muted)' : 'var(--success)',
+              cursor: 'pointer',
+              fontWeight: '600',
+            }}
+          >
+            {isDone ? 'Reopen' : 'Mark Done'}
+          </button>
+
+          {/* Direct Link Action if URL present */}
+          {(() => {
+            const linkMatch = (item.detail || '').match(/https?:\/\/[^\s]+/i) || (item.evidence[0]?.quote || '').match(/https?:\/\/[^\s]+/i);
+            if (!linkMatch) return null;
+            return (
+              <a
+                href={linkMatch[0]}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  fontSize: '11px',
+                  padding: '3px 8px',
+                  borderRadius: '4px',
+                  background: 'var(--accent-subtle)',
+                  border: '1px solid var(--accent-border)',
+                  color: 'var(--accent)',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                  textDecoration: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
+              >
+                <span>Open Link</span>
+                <ExternalLink size={10} />
+              </a>
+            );
+          })()}
+
+          {/* Add to Calendar (.ics) if deadline present */}
+          {item.due?.iso && (
+            <button
+              onClick={() => {
+                const start = new Date(item.due!.iso).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+                const ics = `BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//WhatDidIMiss//EN\nBEGIN:VEVENT\nSUMMARY:${item.title.replace(/\n/g, ' ')}\nDESCRIPTION:${item.detail.replace(/\n/g, ' ')}\nDTSTART:${start}\nDTEND:${start}\nEND:VEVENT\nEND:VCALENDAR`;
+                const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `deadline-${item.id}.ics`;
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+              style={{
+                fontSize: '11px',
+                padding: '3px 8px',
+                borderRadius: '4px',
+                background: 'rgba(255, 255, 255, 0.04)',
+                border: '1px solid var(--border-hairline)',
+                color: 'var(--text-secondary)',
+                cursor: 'pointer',
+                fontWeight: '600',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}
+              title="Download .ics calendar event"
+            >
+              <Clock size={10} />
+              <span>+ Calendar</span>
+            </button>
+          )}
+        </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
           <button

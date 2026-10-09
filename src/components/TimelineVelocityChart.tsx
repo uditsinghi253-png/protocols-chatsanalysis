@@ -4,7 +4,7 @@
  * Why: Visualizes conversation volume spikes and allows non-linear unread triage.
  */
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Message, Item, ConversationState } from '../types/schema';
 import { Activity, BarChart2, Users } from 'lucide-react';
 
@@ -23,67 +23,74 @@ export const TimelineVelocityChart: React.FC<TimelineVelocityChartProps> = ({
 }) => {
   if (messages.length === 0) return null;
 
-  // 1. Group messages into time buckets (up to 24 slots)
-  const bucketCount = Math.min(24, Math.max(8, Math.floor(messages.length / 3)));
-  const firstTs = new Date(messages[0].ts).getTime();
-  const lastTs = new Date(messages[messages.length - 1].ts).getTime();
-  const span = Math.max(1, lastTs - firstTs);
-  const bucketDuration = span / bucketCount;
+  // Memoized bucket computation
+  const { buckets, maxBucketCount, firstTs, lastTs } = useMemo(() => {
+    const bucketCount = Math.min(24, Math.max(8, Math.floor(messages.length / 3)));
+    const fTs = new Date(messages[0].ts).getTime();
+    const lTs = new Date(messages[messages.length - 1].ts).getTime();
+    const span = Math.max(1, lTs - fTs);
+    const bucketDuration = span / bucketCount;
 
-  const buckets: Array<{
-    index: number;
-    startTime: number;
-    count: number;
-    messageIds: string[];
-    isUnreadRange: boolean;
-  }> = Array.from({ length: bucketCount }, (_, i) => ({
-    index: i,
-    startTime: firstTs + i * bucketDuration,
-    count: 0,
-    messageIds: [],
-    isUnreadRange: false,
-  }));
+    const bList = Array.from({ length: bucketCount }, (_, i) => ({
+      index: i,
+      startTime: fTs + i * bucketDuration,
+      count: 0,
+      messageIds: [] as string[],
+      isUnreadRange: false,
+    }));
 
-  const cursorMsgIdx = messages.findIndex(m => m.id === conversationState.cursorMessageId);
-  const cursorTs = cursorMsgIdx !== -1 ? new Date(messages[cursorMsgIdx].ts).getTime() : 0;
+    const cursorMsgIdx = messages.findIndex(m => m.id === conversationState.cursorMessageId);
+    const cursorTs = cursorMsgIdx !== -1 ? new Date(messages[cursorMsgIdx].ts).getTime() : 0;
 
-  messages.forEach(m => {
-    const mTs = new Date(m.ts).getTime();
-    const bIdx = Math.min(bucketCount - 1, Math.max(0, Math.floor((mTs - firstTs) / bucketDuration)));
-    buckets[bIdx].count++;
-    buckets[bIdx].messageIds.push(m.id);
-    if (mTs >= cursorTs) {
-      buckets[bIdx].isUnreadRange = true;
-    }
-  });
+    messages.forEach(m => {
+      const mTs = new Date(m.ts).getTime();
+      const bIdx = Math.min(bucketCount - 1, Math.max(0, Math.floor((mTs - fTs) / bucketDuration)));
+      bList[bIdx].count++;
+      bList[bIdx].messageIds.push(m.id);
+      if (mTs >= cursorTs) {
+        bList[bIdx].isUnreadRange = true;
+      }
+    });
 
-  const maxBucketCount = Math.max(1, ...buckets.map(b => b.count));
+    const maxCount = Math.max(1, ...bList.map(b => b.count));
+    return { buckets: bList, maxBucketCount: maxCount, firstTs: fTs, lastTs: lTs };
+  }, [messages, conversationState.cursorMessageId]);
 
-  // 2. Participant engagement stats
-  const participantStats = new Map<string, { count: number; itemsAssigned: number }>();
-  messages.forEach(m => {
-    const existing = participantStats.get(m.sender) || { count: 0, itemsAssigned: 0 };
-    existing.count++;
-    participantStats.set(m.sender, existing);
-  });
+  // Memoized participant engagement stats
+  const participantList = useMemo(() => {
+    const participantStats = new Map<string, { count: number; itemsAssigned: number }>();
+    messages.forEach(m => {
+      const existing = participantStats.get(m.sender) || { count: 0, itemsAssigned: 0 };
+      existing.count++;
+      participantStats.set(m.sender, existing);
+    });
 
-  items.forEach(it => {
-    if (it.owner && participantStats.has(it.owner)) {
-      participantStats.get(it.owner)!.itemsAssigned++;
-    }
-  });
+    items.forEach(it => {
+      if (it.owner && participantStats.has(it.owner)) {
+        participantStats.get(it.owner)!.itemsAssigned++;
+      }
+    });
 
-  const participantList = Array.from(participantStats.entries())
-    .map(([sender, stat]) => ({ sender, ...stat }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 5);
+    return Array.from(participantStats.entries())
+      .map(([sender, stat]) => ({ sender, ...stat }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+  }, [messages, items]);
 
-  // 3. Urgency Distribution breakdown
-  const critCount = items.filter(i => i.urgency.level === 'critical').length;
-  const highCount = items.filter(i => i.urgency.level === 'high').length;
-  const normCount = items.filter(i => i.urgency.level === 'normal').length;
-  const lowCount = items.filter(i => i.urgency.level === 'low').length;
-  const totalItems = Math.max(1, items.length);
+  // Memoized Urgency Distribution breakdown
+  const { critCount, highCount, normCount, lowCount, totalItems } = useMemo(() => {
+    const crit = items.filter(i => i.urgency.level === 'critical').length;
+    const high = items.filter(i => i.urgency.level === 'high').length;
+    const norm = items.filter(i => i.urgency.level === 'normal').length;
+    const low = items.filter(i => i.urgency.level === 'low').length;
+    return {
+      critCount: crit,
+      highCount: high,
+      normCount: norm,
+      lowCount: low,
+      totalItems: Math.max(1, items.length),
+    };
+  }, [items]);
 
   return (
     <div className="linear-panel" style={{ padding: '20px', marginBottom: '24px' }}>

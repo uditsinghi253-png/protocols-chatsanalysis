@@ -17,9 +17,10 @@ import { PrivacyProofModal } from './components/PrivacyProofModal';
 import { SettingsModal } from './components/SettingsModal';
 import { CommandPaletteModal } from './components/CommandPaletteModal';
 import { ExecutiveBriefingModal } from './components/ExecutiveBriefingModal';
+import { Clock } from 'lucide-react';
 import { runTriagePipeline } from './engine/pipeline';
 import { rescoreAllItems } from './engine/scoring';
-import { resolveUnreadCursor } from './engine/cursor';
+import { resolveUnreadCursor, TriageScope } from './engine/cursor';
 import { egressGuard } from './security/egressGuard';
 import { modelRuntime } from './engine/modelRuntime';
 import { localStore } from './storage/localStore';
@@ -51,6 +52,7 @@ export const App: React.FC = () => {
   // Triage State
   const [messages, setMessages] = useState<Message[]>([]);
   const [conversationState, setConversationState] = useState<ConversationState | null>(null);
+  const [triageScope, setTriageScope] = useState<TriageScope>('last_7d');
   const [items, setItems] = useState<Item[]>([]);
   const [summary, setSummary] = useState<TriageSummary | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -239,6 +241,7 @@ export const App: React.FC = () => {
 
       setMessages(result.messages);
       setConversationState(result.conversationState);
+      setTriageScope(result.scopeUsed);
       setItems(result.items);
       setSummary(result.summary);
       setSelectedItemIndex(0);
@@ -275,6 +278,7 @@ export const App: React.FC = () => {
         existingMessages: messages,
         profile: newProfile,
         config,
+        scope: triageScope,
         manualCursorId: conversationState?.cursorMessageId,
         referenceNow: currentTime,
       });
@@ -284,17 +288,45 @@ export const App: React.FC = () => {
     }
   };
 
+  // 7b. Select triage scope horizon
+  const handleSelectScope = async (newScope: TriageScope) => {
+    if (messages.length === 0) return;
+    setTriageScope(newScope);
+    setIsLoading(true);
+    setProgressStage(`Analyzing messages in ${newScope} scope...`);
+    try {
+      const result = await runTriagePipeline({
+        existingMessages: messages,
+        profile,
+        config,
+        scope: newScope,
+        manualCursorId: conversationState?.cursorMessageId,
+        referenceNow: currentTime,
+      });
+      setItems(result.items);
+      setSummary(result.summary);
+      setSelectedItemIndex(0);
+    } catch (err) {
+      console.error('Scope switch error:', err);
+    } finally {
+      setIsLoading(false);
+      setProgressStage('');
+    }
+  };
+
   // 8. Scrub / Set Cursor from Timeline or Citation
   const handleSetManualCursor = async (messageId: string) => {
     if (messages.length === 0) return;
     const userAliases = [...profile.names, ...profile.aliases, ...profile.handles];
     const newState = resolveUnreadCursor(messages, conversationState?.id || 'chat', userAliases, messageId);
     setConversationState(newState);
+    setTriageScope('unread');
 
     const result = await runTriagePipeline({
       existingMessages: messages,
       profile,
       config,
+      scope: 'unread',
       manualCursorId: messageId,
       referenceNow: currentTime,
     });
@@ -352,6 +384,63 @@ export const App: React.FC = () => {
 
       {hasData && summary && conversationState ? (
         <main>
+          {/* Interactive Triage Scope Selector */}
+          <div
+            className="linear-panel"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '10px 16px',
+              marginBottom: '16px',
+              background: 'rgba(255, 255, 255, 0.02)',
+              flexWrap: 'wrap',
+              gap: '10px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Clock size={14} color="var(--accent)" />
+              <span style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-secondary)' }}>
+                Triage Horizon
+              </span>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                ({summary.unreadCount} msgs · {items.length} extracted items)
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+              {[
+                { id: 'unread', label: 'Unread Catch-Up' },
+                { id: 'last_24h', label: 'Past 24 Hours' },
+                { id: 'last_7d', label: 'Past 7 Days' },
+                { id: 'last_30d', label: 'Past 30 Days' },
+                { id: 'all', label: `Full Backlog (${messages.length})` },
+              ].map(s => {
+                const isActive = triageScope === s.id;
+                return (
+                  <button
+                    key={s.id}
+                    onClick={() => handleSelectScope(s.id as TriageScope)}
+                    style={{
+                      padding: '5px 12px',
+                      borderRadius: '5px',
+                      fontSize: '11px',
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: isActive ? '700' : '500',
+                      background: isActive ? 'var(--accent)' : 'rgba(255, 255, 255, 0.04)',
+                      color: isActive ? '#fff' : 'var(--text-muted)',
+                      border: `1px solid ${isActive ? 'var(--accent)' : 'var(--border-hairline)'}`,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    {s.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Executive Summary Card */}
           <SummaryCard summary={summary} conversationState={conversationState} />
 

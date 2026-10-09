@@ -29,13 +29,13 @@ export function resolveRelativeDate(
 
   const lower = phrase.toLowerCase().trim();
 
-  // Pattern 1: "tomorrow"
-  if (/\btomorrow\b/i.test(lower)) {
+  // Pattern 1: "tomorrow" / "kal"
+  if (/\b(tomorrow|kal)\b/i.test(lower)) {
     const target = new Date(ref);
     target.setDate(target.getDate() + 1);
-    // Check if time is specified (e.g., "tomorrow at 3pm", "tomorrow 15:00")
+    // Check if time is specified (e.g., "tomorrow at 3pm", "kal 15:00")
     const timeMatch = lower.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/);
-    if (timeMatch && !timeMatch[0].includes('tomorrow')) {
+    if (timeMatch && !timeMatch[0].includes('tomorrow') && !timeMatch[0].includes('kal')) {
       let hours = parseInt(timeMatch[1], 10);
       const mins = timeMatch[2] ? parseInt(timeMatch[2], 10) : 0;
       if (timeMatch[3]?.toLowerCase() === 'pm' && hours < 12) hours += 12;
@@ -48,8 +48,16 @@ export function resolveRelativeDate(
     return { iso: target.toISOString(), confidence: 0.9, isUnclearDate: false };
   }
 
-  // Pattern 2: "EOD" / "end of day"
-  if (/\b(eod|end of day|by tonight)\b/i.test(lower)) {
+  // Pattern 1b: "parso" (day after tomorrow)
+  if (/\bparso\b/i.test(lower)) {
+    const target = new Date(ref);
+    target.setDate(target.getDate() + 2);
+    target.setHours(18, 0, 0, 0);
+    return { iso: target.toISOString(), confidence: 0.9, isUnclearDate: false };
+  }
+
+  // Pattern 2: "EOD" / "end of day" / "aaj"
+  if (/\b(eod|end of day|by tonight|aaj\s+raat|aaj)\b/i.test(lower)) {
     const target = new Date(ref);
     target.setHours(18, 0, 0, 0); // 6:00 PM standard EOD
     return { iso: target.toISOString(), confidence: 0.85, isUnclearDate: false };
@@ -188,6 +196,14 @@ export function extractL1Signals(
     [...profile.names, ...profile.aliases, ...profile.handles].map(a => a.toLowerCase().trim())
   );
 
+  // Precompute user message indices for O(1) subsequent reply lookup
+  const userMessageIndices: number[] = [];
+  for (let k = 0; k < messages.length; k++) {
+    if (userAliasSet.has(messages[k].sender.toLowerCase().trim())) {
+      userMessageIndices.push(k);
+    }
+  }
+
   const distinctSenders = new Set(messages.map(m => m.sender.toLowerCase().trim()));
   const isOneOnOne = distinctSenders.size === 2;
 
@@ -209,76 +225,94 @@ export function extractL1Signals(
     }
 
     // --- Signal 1: Question Detection & Unanswered Check ---
-    const isQuestion = text.includes('?') && text.length >= config.heuristics.minQuestionLength;
-    if (isQuestion && mentioned && !isMe) {
-      // Check if user answered subsequently in any message after this
-      let hasUserAnswered = false;
-      for (let j = i + 1; j < messages.length; j++) {
-        if (userAliasSet.has(messages[j].sender.toLowerCase().trim())) {
-          hasUserAnswered = true;
+    // Supports standard questions and code-mixed inquiry syntax (Edge Case E3)
+    const hasQuestionMark = text.includes('?');
+    const isCodeMixedQuestion = /\b(kitne\s+baje|kab\s+milte|kidhar\s+h|kese\s+|kaise\s+|kya\s+hai|kya\s+h|kab\s+se|kaha\s+h|kya\s+scene)\b/i.test(text);
+    const isQuestion = (hasQuestionMark || isCodeMixedQuestion) && text.length >= config.heuristics.minQuestionLength;
+
+    if (isQuestion && (mentioned || isOneOnOne) && !isMe) {
+      // Find first user reply index after this question
+      let nextUserMsgIdx = -1;
+      for (let u = 0; u < userMessageIndices.length; u++) {
+        if (userMessageIndices[u] > i) {
+          nextUserMsgIdx = userMessageIndices[u];
           break;
         }
       }
 
+      let hasUserAnswered = false;
+      if (nextUserMsgIdx !== -1) {
+        const msgGap = nextUserMsgIdx - i;
+        const timeGapMs = Math.abs(new Date(messages[nextUserMsgIdx].ts).getTime() - new Date(msg.ts).getTime());
+        // Answered if user replied within 10 messages and within 12 hours
+        if (msgGap <= 10 && timeGapMs <= 12 * 3600 * 1000) {
+          hasUserAnswered = true;
+        }
+      }
+
+      const signals: ItemSignal[] = [
+        {
+          name: 'directAddress',
+          value: 1.0,
+          weight: config.weights.directAddress,
+          source: 'rule',
+          description: `Direct question asked to you by ${msg.sender}`,
+        },
+      ];
+
       if (!hasUserAnswered) {
         unansweredQuestionsCount++;
-        const signals: ItemSignal[] = [
-          {
-            name: 'directAddress',
-            value: 1.0,
-            weight: config.weights.directAddress,
-            source: 'rule',
-            description: `Direct question asked to you by ${msg.sender}`,
-          },
-          {
-            name: 'unansweredAsk',
-            value: 1.0,
-            weight: config.weights.unansweredAsk,
-            source: 'rule',
-            description: 'No response from you after this question was asked',
-          },
-        ];
-
-        // False urgency penalty if shouting
-        if (shoutingRatio >= config.heuristics.capsLockShoutRatio) {
-          signals.push({
-            name: 'falseUrgencyPenalty',
-            value: shoutingRatio,
-            weight: config.weights.falseUrgencyPenalty,
-            source: 'rule',
-            description: 'Excessive shouting/capitalization penalty applied',
-          });
-        }
-
-        items.push({
-          id: `item_ask_${msg.id}`,
-          kind: 'question_for_user',
-          title: `Question from ${msg.sender}`,
-          detail: text,
-          owner: profile.names[0] || 'You',
-          status: 'open',
-          evidence: [{ messageId: msg.id, quote: text.length > 80 ? text.substring(0, 80) : text }],
-          signals,
-          urgency: {
-            score: 0.7, // Initial baseline before L4 full rescoring
-            level: 'high',
-            explanation: `High: Question addressed to you by ${msg.sender} with no reply yet.`,
-          },
-          relevanceToMe: {
-            score: 1.0,
-            explanation: 'Addressed directly to your handle/name.',
-          },
-          createdFrom: {
-            engine: 'rule',
-            timestamp: new Date().toISOString(),
-          },
+        signals.push({
+          name: 'unansweredAsk',
+          value: 1.0,
+          weight: config.weights.unansweredAsk,
+          source: 'rule',
+          description: 'No response from you after this question was asked',
         });
       }
+
+      // False urgency penalty if shouting
+      if (shoutingRatio >= config.heuristics.capsLockShoutRatio) {
+        signals.push({
+          name: 'falseUrgencyPenalty',
+          value: shoutingRatio,
+          weight: config.weights.falseUrgencyPenalty,
+          source: 'rule',
+          description: 'Excessive shouting/capitalization penalty applied',
+        });
+      }
+
+      const quoteSnippet = text.length > 80 ? text.substring(0, 80) : text;
+
+      items.push({
+        id: `item_ask_${msg.id}`,
+        kind: 'question_for_user',
+        title: hasUserAnswered ? `Question: ${msg.sender}` : `Unanswered Ask from ${msg.sender}`,
+        detail: text,
+        owner: profile.names[0] || 'You',
+        status: hasUserAnswered ? 'done' : 'open',
+        evidence: [{ messageId: msg.id, quote: quoteSnippet }],
+        signals,
+        urgency: {
+          score: hasUserAnswered ? 0.4 : 0.85,
+          level: hasUserAnswered ? 'normal' : 'high',
+          explanation: hasUserAnswered
+            ? `Answered: Question from ${msg.sender} was addressed in subsequent messages.`
+            : `High: Question addressed to you by ${msg.sender} with no reply yet.`,
+        },
+        relevanceToMe: {
+          score: 1.0,
+          explanation: 'Addressed directly to your handle/name in conversation.',
+        },
+        createdFrom: {
+          engine: 'rule',
+          timestamp: new Date().toISOString(),
+        },
+      });
     }
 
     // --- Signal 2: Temporal Expressions / Deadlines ---
-    // Match date/deadline phrases (tomorrow, by EOD, by Monday, in X hours, etc.)
-    const deadlinePattern = /\b(deadline|due\s+by|by\s+tomorrow|by\s+eod|by\s+\w+day|in\s+\d+\s+(?:hour|hr|day)s?|before\s+\w+)\b/i;
+    const deadlinePattern = /\b(deadline|due\s+by|by\s+tomorrow|by\s+eod|by\s+\w+day|in\s+\d+\s+(?:hour|hr|day)s?|before\s+\w+|kal\s+milte|kal\s+(?:subah|shaam|raat|ko)?|parso(?:\s+tak)?|aaj\s+raat|aaj\s+shaam)\b/i;
     const deadlineMatch = text.match(deadlinePattern);
 
     if (deadlineMatch) {
@@ -353,8 +387,7 @@ export function extractL1Signals(
     }
 
     // --- Signal 3: Decision Markers ---
-    // Phrases signaling consensus or decisions made
-    const decisionPattern = /\b(we\s+agreed\s+to|let['’]s\s+go\s+with|final\s+decision|approved\s+by|decided\s+to)\b/i;
+    const decisionPattern = /\b(we\s+agreed\s+to|let['’]s\s+go\s+with|final\s+decision|approved\s+by|decided\s+to|done\s+(?:bhai|bro|yaar|sir|team)|pakka\s+done|chal\s+done|final\s+hai|theek\s+h(?:ai)?|thik\s+h(?:h|ai)?|sahi\s+h(?:ai)?|deal\s+done|lelo\s+sabkoo)\b/i;
     const decMatch = text.match(decisionPattern);
     if (decMatch) {
       items.push({
@@ -390,8 +423,8 @@ export function extractL1Signals(
       });
     }
 
-    // --- Signal 4: Action Items ---
-    const actionPattern = /\b(please\s+\w+|can\s+you\s+(?:take|update|do|fix|help|handle|finish|review|check)|action\s+item|todo:?|i\s+will\s+(?:take|handle|do))\b/i;
+    // --- Signal 4: Action Items & Commitments ---
+    const actionPattern = /\b(please\s+\w+|can\s+you\s+\w+|make\s+sure\s+to|remember\s+to|action\s+item|todo:?|assigned\s+to|i\s+will\s+\w+|i['’]ll\s+\w+|will\s+(?:send|share|check|update|submit|call|book|verify|review|handle|do)|karta\s+hu|karti\s+hu|karunga|karungi|karlenge|kardenge|bhejta\s+hu|bhej\s+dunga|bhej\s+dena|bhej\s+de|bhejdo|send\s+kar|check\s+kar|dekh\s+let?a\s+hu|submit\s+kar|fill\s+kar|book\s+kar|register\s+kar|kardena|baat\s+karunga)\b/i;
     const actionMatch = text.match(actionPattern);
     if (actionMatch && !deadlineMatch) {
       const actionSignals: ItemSignal[] = [
@@ -400,7 +433,7 @@ export function extractL1Signals(
           value: 0.9,
           weight: config.weights.imperativeAction,
           source: 'rule',
-          description: 'Imperative task assignment detected',
+          description: 'Imperative task commitment detected',
         },
         ...(mentioned ? [{
           name: 'directAddress',
@@ -422,23 +455,73 @@ export function extractL1Signals(
         });
       }
 
+      // Determine owner:
+      // If user said "I will / karunga / bhejta hu", user is owner
+      // If counterparty asked user ("can you / please / kardena"), user is owner
+      // Otherwise sender is committing
+      const isUserCommitment = isMe && /\b(i\s+will|i['’]ll|karunga|karta\s+hu|bhejta\s+hu)\b/i.test(text);
+      const isTaskForUser = mentioned || isUserCommitment;
+      const owner = isTaskForUser ? (profile.names[0] || 'You') : msg.sender;
+
       items.push({
         id: `item_act_${msg.id}`,
         kind: 'action_item',
         title: `Action: ${msg.sender}`,
         detail: text,
-        owner: mentioned ? (profile.names[0] || 'You') : msg.sender,
+        owner,
         status: 'open',
         evidence: [{ messageId: msg.id, quote: actionMatch[0] }],
         signals: actionSignals,
         urgency: {
-          score: mentioned ? 0.75 : 0.5,
-          level: mentioned ? 'high' : 'normal',
-          explanation: mentioned ? 'Task assigned directly to you' : 'Team action item',
+          score: isTaskForUser ? 0.75 : 0.5,
+          level: isTaskForUser ? 'high' : 'normal',
+          explanation: isTaskForUser ? 'Task assigned directly to you' : 'Team action commitment',
         },
         relevanceToMe: {
-          score: mentioned ? 1.0 : 0.3,
-          explanation: mentioned ? 'Direct action required from you' : 'General team task',
+          score: isTaskForUser ? 1.0 : 0.4,
+          explanation: isTaskForUser ? 'Direct action required from you' : 'General team task',
+        },
+        createdFrom: {
+          engine: 'rule',
+          timestamp: new Date().toISOString(),
+        },
+      });
+    }
+
+    // --- Signal 5: Shared Links & Key Resources ---
+    const urlMatch = text.match(/https?:\/\/[^\s]+/i);
+    if (urlMatch) {
+      let domain = 'link';
+      try {
+        const u = new URL(urlMatch[0]);
+        domain = u.hostname.replace(/^www\./, '');
+      } catch {}
+
+      items.push({
+        id: `item_res_${msg.id}`,
+        kind: 'important_message',
+        title: `Resource: ${domain}`,
+        detail: text,
+        owner: msg.sender,
+        status: 'open',
+        evidence: [{ messageId: msg.id, quote: urlMatch[0] }],
+        signals: [
+          {
+            name: 'directAddress',
+            value: 0.7,
+            weight: config.weights.directAddress,
+            source: 'rule',
+            description: `Shared resource link from ${msg.sender}`,
+          },
+        ],
+        urgency: {
+          score: 0.45,
+          level: 'normal',
+          explanation: `Shared document or portal link by ${msg.sender}`,
+        },
+        relevanceToMe: {
+          score: mentioned ? 0.8 : 0.5,
+          explanation: 'Referenced link in team discussion',
         },
         createdFrom: {
           engine: 'rule',

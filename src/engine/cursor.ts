@@ -100,3 +100,43 @@ export function getUnreadMessages(messages: Message[], state: ConversationState)
   }
   return messages.slice(cursorIndex + 1);
 }
+
+export type TriageScope = 
+  | 'unread'       // Strictly messages after unread cursor
+  | 'last_24h'     // Messages in the last 24 hours of conversation
+  | 'last_7d'      // Messages in the last 7 days of conversation
+  | 'last_30d'     // Messages in the last 30 days of conversation
+  | 'all';         // Full conversation backlog
+
+/**
+ * Filters messages according to the selected triage scope window.
+ * Why: Allows instant catch-up across temporal horizons beyond just raw unread markers.
+ */
+export function getScopedMessages(
+  messages: Message[],
+  state: ConversationState,
+  scope: TriageScope = 'unread',
+  referenceNow = new Date()
+): Message[] {
+  if (messages.length === 0) return [];
+
+  if (scope === 'all') {
+    return messages;
+  }
+
+  if (scope === 'unread') {
+    return getUnreadMessages(messages, state);
+  }
+
+  const latestMessageTs = new Date(messages[messages.length - 1].ts).getTime();
+  const refTs = Math.max(referenceNow.getTime(), latestMessageTs);
+
+  let horizonMs = 24 * 3600 * 1000;
+  if (scope === 'last_7d') horizonMs = 7 * 24 * 3600 * 1000;
+  if (scope === 'last_30d') horizonMs = 30 * 24 * 3600 * 1000;
+
+  const cutoff = refTs - horizonMs;
+  const scoped = messages.filter(m => new Date(m.ts).getTime() >= cutoff);
+  return scoped.length > 0 ? scoped : messages.slice(-50);
+}
+

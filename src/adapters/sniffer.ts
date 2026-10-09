@@ -58,8 +58,8 @@ function inferDateOrder(dateStrings: string[]): 'DMY' | 'MDY' | 'YMD' {
     const p2 = parseInt(parts[1], 10);
     const p3 = parseInt(parts[2], 10);
 
-    // If third part is 4 digits (year), check p1 and p2
-    if (p3 > 1900 || parts[2].length === 4) {
+    // If third part is year (e.g. 2026 or 26)
+    if (p3 > 1900 || parts[2].length === 4 || (p1 <= 31 && p2 <= 31 && p3 <= 99)) {
       if (p1 > 12) hasFirstNumberAbove12 = true;
       if (p2 > 12) hasSecondNumberAbove12 = true;
     } else if (p1 > 1900 || parts[0].length === 4) {

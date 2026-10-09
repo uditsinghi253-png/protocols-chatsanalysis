@@ -7,6 +7,8 @@
 import React, { useState, useRef } from 'react';
 import { Upload, FileText, ArrowRight, ShieldCheck } from 'lucide-react';
 
+import JSZip from 'jszip';
+
 interface EmptyStateProps {
   onIngest: (rawContent: string) => void;
   isLoading: boolean;
@@ -38,7 +40,22 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
     }
   };
 
-  const readFile = (file: File) => {
+  const readFile = async (file: File) => {
+    if (file.name.endsWith('.zip')) {
+      try {
+        const buffer = await file.arrayBuffer();
+        const zip = await JSZip.loadAsync(buffer);
+        const textFile = Object.values(zip.files).find(f => f.name.endsWith('.txt') || f.name.endsWith('.json'));
+        if (textFile) {
+          const text = await textFile.async('text');
+          onIngest(text);
+          return;
+        }
+      } catch (err) {
+        console.error('Failed to extract chat from zip archive:', err);
+      }
+    }
+
     const reader = new FileReader();
     reader.onload = ev => {
       const content = ev.target?.result as string;
