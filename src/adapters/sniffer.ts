@@ -216,6 +216,26 @@ export function sniffAndParseChat(rawContent: string, conversationId = 'default_
     }
   }
 
+  // Validate whether content actually looks like a chat export
+  if (bracketMatches === 0 && standardMatches === 0) {
+    const isMarkdownOrDoc = rawContent.trim().startsWith('#') || 
+      rawContent.includes('SYSTEM_DESIGN') || 
+      rawContent.includes('RAG_DESIGN') ||
+      rawContent.trim().startsWith('---') ||
+      rawContent.trim().startsWith('import ') ||
+      rawContent.trim().startsWith('<!DOCTYPE');
+
+    if (isMarkdownOrDoc || lines.length > 5) {
+      return {
+        formatDetected: 'unknown',
+        messages: [],
+        participants: [],
+        inferredDateOrder: 'DMY',
+        errors: ['The uploaded file appears to be a markdown document or code file, not a recognized WhatsApp, Telegram, or Slack chat export.'],
+      };
+    }
+  }
+
   const formatDetected = 
     bracketMatches > standardMatches ? 'whatsapp_bracketed' :
     standardMatches > 0 ? 'whatsapp_standard' : 'plain_lines';

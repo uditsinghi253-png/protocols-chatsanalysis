@@ -5,18 +5,20 @@
  */
 
 import React, { useState, useRef } from 'react';
-import { Upload, FileText, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Upload, FileText, ArrowRight, ShieldCheck, Zap } from 'lucide-react';
 
 import JSZip from 'jszip';
 
 interface EmptyStateProps {
   onIngest: (rawContent: string) => void;
+  onLoadRealChat?: () => void;
   isLoading: boolean;
   progressStage?: string;
 }
 
 export const EmptyState: React.FC<EmptyStateProps> = ({
   onIngest,
+  onLoadRealChat,
   isLoading,
   progressStage,
 }) => {
@@ -90,9 +92,34 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
         <h2 style={{ fontSize: '30px', fontWeight: '800', letterSpacing: '-0.03em', color: '#fff', marginBottom: '10px' }}>
           Triage overwhelming chat backlog in seconds.
         </h2>
-        <p style={{ fontSize: '14px', color: 'var(--text-secondary)', maxWidth: '560px', margin: '0 auto', lineHeight: '1.6' }}>
+        <p style={{ fontSize: '14px', color: 'var(--text-secondary)', maxWidth: '560px', margin: '0 auto 16px auto', lineHeight: '1.6' }}>
           Isolates unread messages, extracts verified action items, tracks approaching deadlines, and resolves decisions. 100% on-device. Zero network egress.
         </p>
+
+        {onLoadRealChat && (
+          <div>
+            <button
+              onClick={onLoadRealChat}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 20px',
+                borderRadius: '8px',
+                background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                color: '#fff',
+                fontSize: '13px',
+                fontWeight: '700',
+                cursor: 'pointer',
+                boxShadow: '0 4px 15px rgba(99, 102, 241, 0.3)',
+              }}
+            >
+              <Zap size={15} />
+              <span>Load Real Chat (Rudra & Udit — 7,097 messages)</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {isLoading ? (

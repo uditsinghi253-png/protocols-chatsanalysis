@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { Shield, Sliders, Settings, Trash2, Terminal, FileText, Command, UserX, Sparkles } from 'lucide-react';
+import { Shield, Sliders, Settings, Trash2, Terminal, FileText, Command, UserX, Sparkles, Zap, Radio } from 'lucide-react';
 import { EgressStats } from '../types/schema';
 
 interface HeaderProps {
@@ -20,6 +20,9 @@ interface HeaderProps {
   onOpenWhyDrawer: () => void;
   onOpenSettings: () => void;
   onWipeData: () => void;
+  onLoadRealChat?: () => void;
+  isLiveSimulationActive?: boolean;
+  onToggleLiveSimulation?: () => void;
   hasData: boolean;
 }
 
@@ -35,6 +38,9 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenWhyDrawer,
   onOpenSettings,
   onWipeData,
+  onLoadRealChat,
+  isLiveSimulationActive = false,
+  onToggleLiveSimulation,
   hasData,
 }) => {
   return (
@@ -176,25 +182,52 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         )}
 
-        {/* Live Watcher Pill */}
-        {isLiveStreamConnected && (
-          <div
+        {/* 1-Click Load Real Chat Dataset */}
+        {onLoadRealChat && (
+          <button
+            onClick={onLoadRealChat}
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              padding: '5px 9px',
+              padding: '5px 11px',
               borderRadius: '6px',
-              background: 'var(--accent-subtle)',
-              border: '1px solid var(--accent-border)',
+              background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.2) 0%, rgba(124, 58, 237, 0.2) 100%)',
+              border: '1px solid rgba(124, 58, 237, 0.4)',
+              color: '#a5b4fc',
               fontSize: '11px',
-              color: 'var(--accent)',
-              fontFamily: 'var(--font-mono)',
+              fontWeight: '700',
+              cursor: 'pointer',
             }}
+            title="Load the 7,097 messages real WhatsApp export directly"
           >
-            <span className="led-indicator" style={{ backgroundColor: 'var(--accent)' }} />
-            <span>LIVE STREAM</span>
-          </div>
+            <Zap size={12} color="#818cf8" />
+            <span>Load Real Chat (7,097)</span>
+          </button>
+        )}
+
+        {/* Real-Time Live Message Stream Simulator Toggle */}
+        {onToggleLiveSimulation && (
+          <button
+            onClick={onToggleLiveSimulation}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '5px 11px',
+              borderRadius: '6px',
+              background: isLiveSimulationActive ? 'rgba(34, 197, 94, 0.15)' : 'rgba(255, 255, 255, 0.04)',
+              border: isLiveSimulationActive ? '1px solid rgba(34, 197, 94, 0.4)' : '1px solid var(--border-hairline)',
+              color: isLiveSimulationActive ? '#4ade80' : 'var(--text-secondary)',
+              fontSize: '11px',
+              fontWeight: '600',
+              cursor: 'pointer',
+            }}
+            title="Toggle real-time live message streaming simulator"
+          >
+            <Radio size={12} color={isLiveSimulationActive ? '#4ade80' : isLiveStreamConnected ? '#38bdf8' : 'var(--text-muted)'} />
+            <span>{isLiveSimulationActive ? 'LIVE STREAMING' : isLiveStreamConnected ? 'Live Ready' : 'Live Mode'}</span>
+          </button>
         )}
 
         {/* Executive Standup Briefing Button */}

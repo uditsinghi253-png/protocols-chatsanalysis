@@ -5,7 +5,7 @@
  * Why: Delivers a defensible, production-ready, executive-grade triage experience.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Header } from './components/Header';
 import { SummaryCard } from './components/SummaryCard';
 import { TimelineVelocityChart } from './components/TimelineVelocityChart';
@@ -36,7 +36,6 @@ import {
   ConversationState,
   TriageSummary,
   EgressStats,
-  RuntimeProbeResult,
 } from './types/schema';
 
 export const App: React.FC = () => {
@@ -68,12 +67,22 @@ export const App: React.FC = () => {
   // Clock Tick (System Clock Time)
   const [currentTime, setCurrentTime] = useState(new Date());
 
-  // Live Stream Connection Status
+  // Live Stream Connection Status & Simulation
   const [isLiveStreamConnected, setIsLiveStreamConnected] = useState(false);
+  const [isLiveSimulationActive, setIsLiveSimulationActive] = useState(false);
 
-  // Egress & Runtime Probes
+  // Egress Guard Monitoring
   const [egressStats, setEgressStats] = useState<EgressStats>(egressGuard.getStats());
-  const [runtimeStatus, setRuntimeStatus] = useState<RuntimeProbeResult>(modelRuntime.getStatus());
+
+  // Dynamic Refs to prevent stale closure in SSE and timers
+  const profileRef = useRef(profile);
+  profileRef.current = profile;
+  const configRef = useRef(config);
+  configRef.current = config;
+  const triageScopeRef = useRef(triageScope);
+  triageScopeRef.current = triageScope;
+  const convStateRef = useRef(conversationState);
+  convStateRef.current = conversationState;
 
   // UI Modal Controls
   const [isPrivacyProofOpen, setIsPrivacyProofOpen] = useState(false);
@@ -96,17 +105,15 @@ export const App: React.FC = () => {
     [messages, items, profile]
   );
 
-  // 1. Install Egress Guard and initialize probes on mount
+  // 1. Install Egress Guard and initialize session on mount
   useEffect(() => {
     egressGuard.install();
     const unsubscribeEgress = egressGuard.subscribe(setEgressStats);
 
-    // Initial probe of local model servers (Ollama / LM Studio)
-    modelRuntime.probeRuntime().then(status => {
-      setRuntimeStatus(status);
-    });
+    // Background silent probe of loopback inference
+    modelRuntime.probeRuntime().catch(() => {});
 
-    // Load persisted state
+    // Load persisted state or bootstrap with real chat dataset
     (async () => {
       const savedProfile = await localStore.loadIdentityProfile();
       if (savedProfile) setProfile(savedProfile);
@@ -115,11 +122,25 @@ export const App: React.FC = () => {
       if (savedConfig) setConfig(savedConfig);
 
       const savedSession = await localStore.loadSession();
-      if (savedSession && savedSession.messages.length > 0) {
+      // Check if session contains corrupted single markdown line
+      const isCorrupted =
+        savedSession &&
+        savedSession.messages.length === 1 &&
+        (savedSession.messages[0]?.sender === 'System' ||
+          savedSession.messages[0]?.text.includes('# ') ||
+          savedSession.messages[0]?.text.includes('RAG DESIGN'));
+
+      if (isCorrupted) {
+        localStore.wipeAllData();
+        await handleLoadRealChat();
+      } else if (savedSession && savedSession.messages.length > 0) {
         setMessages(savedSession.messages);
         setConversationState(savedSession.conversationState);
         setItems(savedSession.items);
         setSummary(savedSession.summary);
+      } else {
+        // Auto-bootstrap real chat dataset if store is empty
+        await handleLoadRealChat();
       }
     })();
 
@@ -146,7 +167,40 @@ export const App: React.FC = () => {
             if (burstTimer) clearTimeout(burstTimer);
             burstTimer = setTimeout(() => {
               handleIngestChat(payload.content);
-            }, config.runtime.liveBurstDebounceMs);
+            }, configRef.current.runtime.liveBurstDebounceMs);
+          } else if (payload.type === 'live_turn' && payload.data) {
+            const raw = payload.data;
+            setMessages(prev => {
+              const newMsg: Message = {
+                id: `msg_live_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+                conversationId: convStateRef.current?.id || 'active_chat',
+                ts: raw.ts || new Date().toISOString(),
+                sender: raw.sender || 'Rudra',
+                senderId: (raw.sender || 'Rudra').toLowerCase().trim(),
+                text: raw.text || '',
+                ordinal: prev.length,
+              };
+              const updated = [...prev, newMsg];
+              runTriagePipeline({
+                existingMessages: updated,
+                profile: profileRef.current,
+                config: configRef.current,
+                scope: triageScopeRef.current,
+                manualCursorId: convStateRef.current?.cursorMessageId,
+                referenceNow: new Date(),
+              }).then(result => {
+                setConversationState(result.conversationState);
+                setItems(result.items);
+                setSummary(result.summary);
+                localStore.saveSession(
+                  updated,
+                  result.items,
+                  result.conversationState,
+                  result.summary
+                );
+              });
+              return updated;
+            });
           }
         } catch {
           // ignore malformed SSE
@@ -160,7 +214,7 @@ export const App: React.FC = () => {
       if (burstTimer) clearTimeout(burstTimer);
       sse?.close();
     };
-  }, [config.runtime.liveBurstDebounceMs]);
+  }, []);
 
   // 3. Real-Time Clock Tick: Rescores time-sensitive deadlines as time passes
   useEffect(() => {
@@ -278,6 +332,42 @@ export const App: React.FC = () => {
     } finally {
       setIsLoading(false);
       setProgressStage('');
+    }
+  };
+
+  // 5b. 1-Click Load Real Dataset (WhatsApp - Rudra: 7,097 messages)
+  const handleLoadRealChat = async () => {
+    setIsLoading(true);
+    setProgressStage('Loading 7,097 messages from real WhatsApp dataset...');
+    try {
+      const res = await fetch('http://127.0.0.1:4040/api/default-chat');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (data.ok && data.content) {
+        await handleIngestChat(data.content);
+      }
+    } catch (err) {
+      console.warn('Real chat loading failed:', err);
+    } finally {
+      setIsLoading(false);
+      setProgressStage('');
+    }
+  };
+
+  // 5c. Real-Time Conversational Live Simulator Toggle
+  const handleToggleLiveSimulation = async () => {
+    try {
+      if (isLiveSimulationActive) {
+        await fetch('http://127.0.0.1:4040/api/stop-live', { method: 'POST' });
+        setIsLiveSimulationActive(false);
+      } else {
+        const res = await fetch('http://127.0.0.1:4040/api/simulate-live', { method: 'POST' });
+        if (res.ok) {
+          setIsLiveSimulationActive(true);
+        }
+      }
+    } catch (err) {
+      console.warn('Simulation toggle failed:', err);
     }
   };
 
@@ -402,6 +492,9 @@ export const App: React.FC = () => {
         onOpenWhyDrawer={() => setIsWhyDrawerOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onWipeData={handleWipeData}
+        onLoadRealChat={handleLoadRealChat}
+        isLiveSimulationActive={isLiveSimulationActive}
+        onToggleLiveSimulation={handleToggleLiveSimulation}
         hasData={hasData}
       />
 
@@ -488,6 +581,7 @@ export const App: React.FC = () => {
       ) : (
         <EmptyState
           onIngest={handleIngestChat}
+          onLoadRealChat={handleLoadRealChat}
           isLoading={isLoading}
           progressStage={progressStage}
         />
@@ -560,17 +654,12 @@ export const App: React.FC = () => {
         stats={egressStats}
       />
 
-      {/* Identity & Runtime Settings Modal */}
+      {/* Identity & Profile Settings Modal */}
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         profile={profile}
         onSaveProfile={handleSaveProfile}
-        runtimeStatus={runtimeStatus}
-        onRefreshRuntime={async () => {
-          const res = await modelRuntime.probeRuntime();
-          setRuntimeStatus(res);
-        }}
         onWipeData={handleWipeData}
       />
     </div>

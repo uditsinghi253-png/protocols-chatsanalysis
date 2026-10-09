@@ -1,0 +1,85 @@
+name: Deployment Protection & Quality Gate
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  deployments: write
+  packages: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality-and-security-gates:
+    name: Code Integrity & Security Gates
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js Runtime
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Gate 1 — Zero-Hardcoding & No-Mock Audit
+        run: npm run audit:hardcode
+
+      - name: Gate 2 — Strict TypeScript Verification
+        run: npx tsc --noEmit
+
+      - name: Gate 3 — Unit, Edge Case & Grounding Tests
+        run: npm test
+
+      - name: Gate 4 — Full Pre-Deployment Security Guard
+        run: npm run deploy:check
+
+      - name: Gate 5 — Production Bundle Compilation
+        run: npm run build
+
+      - name: Archive Production Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-build-artifacts
+          path: dist/
+          retention-days: 7
+
+  deployment-protection-gate:
+    name: Production Deployment Protection
+    needs: quality-and-security-gates
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://github.com/${{ github.repository }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Download Production Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: production-build-artifacts
+          path: dist/
+
+      - name: Verify Bundle Integrity & CSP Directives
+        run: |
+          echo "Verifying production build bundle..."
+          test -f dist/index.html || (echo "Missing dist/index.html" && exit 1)
+          grep -q "Content-Security-Policy" dist/index.html || (echo "CSP missing in dist/index.html" && exit 1)
+          echo "Production deployment protection passed successfully."

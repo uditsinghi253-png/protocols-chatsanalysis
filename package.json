@@ -9,7 +9,9 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "audit:hardcode": "node scripts/hardcode-audit.mjs"
+    "audit:hardcode": "node scripts/hardcode-audit.mjs",
+    "deploy:check": "node scripts/deploy-guard.mjs",
+    "predeploy": "node scripts/deploy-guard.mjs"
   },
   "dependencies": {
     "jszip": "^3.10.2",

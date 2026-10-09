@@ -10,6 +10,7 @@
 import http from 'http';
 import fs from 'fs';
 import path from 'path';
+import { execSync } from 'child_process';
 
 const PORT = 4040;
 const HOST = '127.0.0.1'; // Strictly loopback
@@ -20,6 +21,7 @@ if (!fs.existsSync(WATCH_DIR)) {
 }
 
 const clients = new Set();
+let liveSimulationInterval = null;
 
 // Runtime LLM configuration in memory
 let runtimeLlmConfig = {
@@ -54,6 +56,80 @@ const server = http.createServer(async (req, res) => {
     req.on('close', () => {
       clients.delete(res);
     });
+    return;
+  }
+
+  // Fetch real chat export directly for 1-click instant load
+  if (req.url === '/api/default-chat' && req.method === 'GET') {
+    try {
+      const candidates = [
+        path.join(process.env.HOME || '/Users/uditsinghi', 'Downloads', 'WhatsApp Chat - Rudra.zip'),
+        path.join(process.env.HOME || '/Users/uditsinghi', 'Downloads', 'WhatsApp Chat - Rudra (1).zip'),
+      ];
+
+      let rawChat = null;
+      for (const p of candidates) {
+        if (fs.existsSync(p)) {
+          rawChat = execSync(`unzip -p "${p}" _chat.txt`).toString('utf-8');
+          break;
+        }
+      }
+
+      if (rawChat) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true, filename: 'WhatsApp Chat - Rudra.txt', content: rawChat }));
+      } else {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: 'Chat export file not found in Downloads' }));
+      }
+    } catch (err) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, error: err.message }));
+    }
+    return;
+  }
+
+  // Real-Time Live Message Stream Simulator
+  if (req.url === '/api/simulate-live' && req.method === 'POST') {
+    if (liveSimulationInterval) clearInterval(liveSimulationInterval);
+
+    const simulationScript = [
+      { sender: 'Rudra', text: 'Hey Udit, did you get a chance to check the auth service?' },
+      { sender: 'Udit', text: 'Yeah looking at it now, will deploy the fixes in 10 mins.' },
+      { sender: 'Rudra', text: 'Awesome! Can you also send over the updated API docs?' },
+      { sender: 'Udit', text: 'Sure, here: https://github.com/protocol/repo/docs' },
+      { sender: 'Rudra', text: 'Perfect. What time are we meeting tomorrow?' },
+      { sender: 'Udit', text: 'Kal subah 11am milte hai, final decision done!' },
+    ];
+
+    let step = 0;
+    liveSimulationInterval = setInterval(() => {
+      if (clients.size === 0) return;
+      const item = simulationScript[step % simulationScript.length];
+      const nowIso = new Date().toISOString();
+      const msgPayload = {
+        sender: item.sender,
+        text: item.text,
+        ts: nowIso,
+      };
+
+      broadcast({ type: 'live_turn', data: msgPayload });
+      step++;
+    }, 1500);
+
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ status: 'simulation_active', intervalMs: 1500 }));
+    return;
+  }
+
+  // Stop Live Simulation
+  if (req.url === '/api/stop-live' && req.method === 'POST') {
+    if (liveSimulationInterval) {
+      clearInterval(liveSimulationInterval);
+      liveSimulationInterval = null;
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ status: 'simulation_stopped' }));
     return;
   }
 

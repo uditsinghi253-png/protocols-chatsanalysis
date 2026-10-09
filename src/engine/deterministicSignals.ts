@@ -19,6 +19,15 @@ export interface L1AnalysisResult {
  * Resolves temporal expressions relative to message's own timestamp
  * Why: Edge Case E1. "Tomorrow" sent on Friday means Saturday, not system clock tomorrow.
  */
+/**
+ * Sanitizes and truncates detail text to prevent unformatted markdown dumps
+ * Why: Keeps card previews executive, clean, and concise without 15KB document dumps
+ */
+export function cleanDetailText(raw: string, maxLen = 280): string {
+  const clean = raw.replace(/^#+\s*/gm, '').replace(/\r?\n+/g, ' ').trim();
+  return clean.length > maxLen ? clean.slice(0, maxLen).trim() + '...' : clean;
+}
+
 export function resolveRelativeDate(
   phrase: string,
   referenceTsIso: string,
@@ -288,7 +297,7 @@ export function extractL1Signals(
         id: `item_ask_${msg.id}`,
         kind: 'question_for_user',
         title: hasUserAnswered ? `Question: ${msg.sender}` : `Unanswered Ask from ${msg.sender}`,
-        detail: text,
+        detail: cleanDetailText(text),
         owner: profile.names[0] || 'You',
         status: hasUserAnswered ? 'done' : 'open',
         evidence: [{ messageId: msg.id, quote: quoteSnippet }],
@@ -312,7 +321,7 @@ export function extractL1Signals(
     }
 
     // --- Signal 2: Temporal Expressions / Deadlines ---
-    const deadlinePattern = /\b(deadline|due\s+by|by\s+tomorrow|by\s+eod|by\s+\w+day|in\s+\d+\s+(?:hour|hr|day)s?|before\s+\w+|kal\s+milte|kal\s+(?:subah|shaam|raat|ko)?|parso(?:\s+tak)?|aaj\s+raat|aaj\s+shaam)\b/i;
+    const deadlinePattern = /\b(deadline|due\s+by|by\s+tomorrow|by\s+eod|by\s+\w+day|in\s+\d+\s+(?:hour|hr|day)s?|before\s+(?:tomorrow|midnight|noon|eod|monday|tuesday|wednesday|thursday|friday|saturday|sunday|\d+[\w:]*)|kal\s+milte|kal\s+(?:subah|shaam|raat|ko)?|parso(?:\s+tak)?|aaj\s+raat|aaj\s+shaam)\b/i;
     const deadlineMatch = text.match(deadlinePattern);
 
     if (deadlineMatch) {
@@ -357,7 +366,7 @@ export function extractL1Signals(
           id: `item_dl_${msg.id}`,
           kind: 'deadline',
           title: `Deadline: ${deadlineMatch[0]}`,
-          detail: text,
+          detail: cleanDetailText(text),
           due: {
             iso: resolved.iso,
             confidence: resolved.confidence,
@@ -394,7 +403,7 @@ export function extractL1Signals(
         id: `item_dec_${msg.id}`,
         kind: 'decision',
         title: `Decision by ${msg.sender}`,
-        detail: text,
+        detail: cleanDetailText(text),
         owner: msg.sender,
         status: 'open',
         evidence: [{ messageId: msg.id, quote: decMatch[0] }],
@@ -455,10 +464,6 @@ export function extractL1Signals(
         });
       }
 
-      // Determine owner:
-      // If user said "I will / karunga / bhejta hu", user is owner
-      // If counterparty asked user ("can you / please / kardena"), user is owner
-      // Otherwise sender is committing
       const isUserCommitment = isMe && /\b(i\s+will|i['’]ll|karunga|karta\s+hu|bhejta\s+hu)\b/i.test(text);
       const isTaskForUser = mentioned || isUserCommitment;
       const owner = isTaskForUser ? (profile.names[0] || 'You') : msg.sender;
@@ -467,7 +472,7 @@ export function extractL1Signals(
         id: `item_act_${msg.id}`,
         kind: 'action_item',
         title: `Action: ${msg.sender}`,
-        detail: text,
+        detail: cleanDetailText(text),
         owner,
         status: 'open',
         evidence: [{ messageId: msg.id, quote: actionMatch[0] }],
@@ -501,7 +506,7 @@ export function extractL1Signals(
         id: `item_res_${msg.id}`,
         kind: 'important_message',
         title: `Resource: ${domain}`,
-        detail: text,
+        detail: cleanDetailText(text),
         owner: msg.sender,
         status: 'open',
         evidence: [{ messageId: msg.id, quote: urlMatch[0] }],
