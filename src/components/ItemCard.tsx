@@ -15,6 +15,9 @@ import {
   ThumbsUp,
   ThumbsDown,
   RotateCcw,
+  AlertTriangle,
+  Flame,
+  Link as LinkIcon,
 } from 'lucide-react';
 import { Item } from '../types/schema';
 
@@ -25,6 +28,7 @@ interface ItemCardProps {
   onJumpToSource: (messageId: string) => void;
   onToggleStatus: (itemId: string) => void;
   onFeedback: (itemId: string, isPositive: boolean) => void;
+  onFlaggerClick?: (flaggerType: string) => void;
 }
 
 export const ItemCard: React.FC<ItemCardProps> = ({
@@ -34,6 +38,7 @@ export const ItemCard: React.FC<ItemCardProps> = ({
   onJumpToSource,
   onToggleStatus,
   onFeedback,
+  onFlaggerClick,
 }) => {
   // Live deadline calculation
   let countdownText: string | null = null;
@@ -197,6 +202,50 @@ export const ItemCard: React.FC<ItemCardProps> = ({
         <div style={{ marginBottom: '8px', fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
           <RotateCcw size={11} />
           <span>Reversed by a subsequent decision in chat</span>
+        </div>
+      )}
+
+      {/* Statistical Flaggers & Markers */}
+      {item.flaggers && item.flaggers.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginBottom: '8px' }}>
+          {item.flaggers.map(flg => {
+            const flagConfig = {
+              ghost_risk: { bg: 'rgba(245, 158, 11, 0.12)', border: 'rgba(245, 158, 11, 0.3)', color: '#fbbf24', icon: <Clock size={10} /> },
+              blocking: { bg: 'rgba(239, 68, 68, 0.12)', border: 'rgba(239, 68, 68, 0.3)', color: '#f87171', icon: <AlertTriangle size={10} /> },
+              high_velocity: { bg: 'rgba(168, 85, 247, 0.12)', border: 'rgba(168, 85, 247, 0.3)', color: '#c084fc', icon: <Flame size={10} /> },
+              overdue_risk: { bg: 'rgba(244, 63, 94, 0.12)', border: 'rgba(244, 63, 94, 0.3)', color: '#fb7185', icon: <Clock size={10} /> },
+              resource_anchor: { bg: 'rgba(59, 130, 246, 0.12)', border: 'rgba(59, 130, 246, 0.3)', color: '#60a5fa', icon: <LinkIcon size={10} /> },
+            }[flg.type];
+
+            return (
+              <span
+                key={flg.id}
+                title={flg.explanation}
+                style={{
+                  fontSize: '10px',
+                  fontFamily: 'var(--font-mono)',
+                  padding: '2px 6px',
+                  borderRadius: '3px',
+                  background: flagConfig.bg,
+                  border: `1px solid ${flagConfig.border}`,
+                  color: flagConfig.color,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  cursor: onFlaggerClick ? 'pointer' : 'default',
+                }}
+                onClick={(e) => {
+                  if (onFlaggerClick) {
+                    e.stopPropagation();
+                    onFlaggerClick(flg.type);
+                  }
+                }}
+              >
+                {flagConfig.icon}
+                <span>{flg.label}</span>
+              </span>
+            );
+          })}
         </div>
       )}
 

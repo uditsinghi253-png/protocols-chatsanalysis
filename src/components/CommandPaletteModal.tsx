@@ -5,7 +5,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Search, CheckCircle, Clock, FileText, Shield, Sliders, Copy, Trash2 } from 'lucide-react';
+import { Search, CheckCircle, Clock, FileText, Shield, Sliders, Copy, Trash2, UserX, Sparkles } from 'lucide-react';
 import { Item } from '../types/schema';
 
 interface CommandPaletteModalProps {
@@ -17,6 +17,8 @@ interface CommandPaletteModalProps {
   onOpenWhyDrawer: () => void;
   onCopyBriefing: () => void;
   onWipeData: () => void;
+  onOpenGhostedThreads?: () => void;
+  onOpenWrapped?: () => void;
 }
 
 export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
@@ -28,6 +30,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
   onOpenWhyDrawer,
   onCopyBriefing,
   onWipeData,
+  onOpenGhostedThreads,
+  onOpenWrapped,
 }) => {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -48,6 +52,18 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
   );
 
   const actions = [
+    {
+      id: 'ghosted',
+      label: 'Inspect Ghosted Inquiries & Unreturned Threads',
+      icon: <UserX size={14} color="#fbbf24" />,
+      execute: () => { onOpenGhostedThreads?.(); onClose(); },
+    },
+    {
+      id: 'wrapped',
+      label: 'Open Collaboration Wrapped Analytics (Velocity & Archetype)',
+      icon: <Sparkles size={14} color="#c084fc" />,
+      execute: () => { onOpenWrapped?.(); onClose(); },
+    },
     {
       id: 'briefing',
       label: 'Copy Executive Standup Briefing to Clipboard',

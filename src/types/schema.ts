@@ -65,6 +65,13 @@ export interface ItemSignal {
   description: string;
 }
 
+export interface ItemFlagger {
+  id: string;
+  type: 'ghost_risk' | 'blocking' | 'high_velocity' | 'overdue_risk' | 'resource_anchor';
+  label: string;
+  explanation: string;
+}
+
 export interface Item {
   id: string;
   kind: ItemKind;
@@ -82,6 +89,11 @@ export interface Item {
   supersedes?: string[]; // IDs of superseded items (Edge case E2)
   supersededBy?: string; // ID of new item that superseded this
   signals: ItemSignal[];
+  flaggers?: ItemFlagger[];
+  stats?: {
+    replyLatencyMin?: number;
+    burstVelocity?: number;
+  };
   urgency: {
     score: number; // 0.0 to 1.0
     level: 'critical' | 'high' | 'normal' | 'low';
@@ -96,6 +108,60 @@ export interface Item {
     modelId?: string;
     timestamp: string;
   };
+}
+
+export interface GhostedThread {
+  id: string;
+  sourceMessageId: string;
+  sender: string;
+  recipient: string;
+  isOutgoing: boolean; // true if you asked and counterparty ghosted; false if counterparty asked and you ghosted
+  text: string;
+  ts: string;
+  daysSilent: number;
+  hoursSilent: number;
+  severity: 'critical' | 'high' | 'normal';
+  inquiryType: 'decision_needed' | 'information_request' | 'action_request' | 'meeting_request';
+  suggestedAction: string;
+}
+
+export interface WrappedAnalytics {
+  totalMessages: number;
+  totalWords: number;
+  dateRange: {
+    start: string;
+    end: string;
+    daysCount: number;
+  };
+  participants: Array<{
+    name: string;
+    messageCount: number;
+    wordCount: number;
+    percentage: number;
+    medianReplyMinutes: number;
+    actionsCommitted: number;
+    questionsAsked: number;
+  }>;
+  peakActivity: {
+    busiestDate: string;
+    busiestDateCount: number;
+    busiestHourOfDay: number;
+    fastestExchangeMsgsIn10Min: number;
+  };
+  conversationArchetype: {
+    title: string;
+    subtitle: string;
+    dynamicDescription: string;
+  };
+  metrics: {
+    decisionsFinalized: number;
+    commitmentsTotal: number;
+    linksShared: number;
+    ghostedCount: number;
+    balanceParityRatio: number;
+  };
+  topKeywords: Array<{ word: string; count: number }>;
+  topDomains: Array<{ domain: string; count: number }>;
 }
 
 export interface ConversationState {

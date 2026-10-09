@@ -17,10 +17,14 @@ import { PrivacyProofModal } from './components/PrivacyProofModal';
 import { SettingsModal } from './components/SettingsModal';
 import { CommandPaletteModal } from './components/CommandPaletteModal';
 import { ExecutiveBriefingModal } from './components/ExecutiveBriefingModal';
+import { GhostedThreadsModal } from './components/GhostedThreadsModal';
+import { WrappedModal } from './components/WrappedModal';
 import { Clock } from 'lucide-react';
 import { runTriagePipeline } from './engine/pipeline';
 import { rescoreAllItems } from './engine/scoring';
 import { resolveUnreadCursor, TriageScope } from './engine/cursor';
+import { detectGhostedThreads } from './engine/ghostDetector';
+import { computeWrappedAnalytics } from './engine/wrappedAnalytics';
 import { egressGuard } from './security/egressGuard';
 import { modelRuntime } from './engine/modelRuntime';
 import { localStore } from './storage/localStore';
@@ -77,7 +81,20 @@ export const App: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isBriefingOpen, setIsBriefingOpen] = useState(false);
+  const [isGhostedModalOpen, setIsGhostedModalOpen] = useState(false);
+  const [isWrappedModalOpen, setIsWrappedModalOpen] = useState(false);
   const [sourceViewerTargetId, setSourceViewerTargetId] = useState<string | null>(null);
+
+  // Deep Behavioral & Collaboration Intelligence
+  const ghostedThreads = React.useMemo(
+    () => detectGhostedThreads(messages, profile, currentTime),
+    [messages, profile, currentTime]
+  );
+
+  const wrappedAnalytics = React.useMemo(
+    () => computeWrappedAnalytics(messages, items, profile),
+    [messages, items, profile]
+  );
 
   // 1. Install Egress Guard and initialize probes on mount
   useEffect(() => {
@@ -171,6 +188,8 @@ export const App: React.FC = () => {
           setIsWhyDrawerOpen(false);
           setIsSettingsOpen(false);
           setIsBriefingOpen(false);
+          setIsGhostedModalOpen(false);
+          setIsWrappedModalOpen(false);
           setSourceViewerTargetId(null);
         }
         return;
@@ -217,6 +236,8 @@ export const App: React.FC = () => {
         setIsWhyDrawerOpen(false);
         setIsSettingsOpen(false);
         setIsBriefingOpen(false);
+        setIsGhostedModalOpen(false);
+        setIsWrappedModalOpen(false);
         setSourceViewerTargetId(null);
       }
     };
@@ -371,10 +392,12 @@ export const App: React.FC = () => {
     <div style={{ minHeight: '100vh', padding: '16px 24px', maxWidth: '1440px', margin: '0 auto' }}>
       <Header
         egressStats={egressStats}
-        runtimeStatus={runtimeStatus}
         isLiveStreamConnected={isLiveStreamConnected}
         onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
         onOpenExecutiveBriefing={() => setIsBriefingOpen(true)}
+        onOpenGhostedThreads={() => setIsGhostedModalOpen(true)}
+        ghostedCount={ghostedThreads.length}
+        onOpenWrapped={() => setIsWrappedModalOpen(true)}
         onOpenPrivacyProof={() => setIsPrivacyProofOpen(true)}
         onOpenWhyDrawer={() => setIsWhyDrawerOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
@@ -484,6 +507,8 @@ export const App: React.FC = () => {
         onOpenWhyDrawer={() => setIsWhyDrawerOpen(true)}
         onCopyBriefing={() => setIsBriefingOpen(true)}
         onWipeData={handleWipeData}
+        onOpenGhostedThreads={() => setIsGhostedModalOpen(true)}
+        onOpenWrapped={() => setIsWrappedModalOpen(true)}
       />
 
       {/* Executive Standup Briefing Exporter Modal */}
@@ -493,6 +518,21 @@ export const App: React.FC = () => {
         summary={summary}
         items={items}
         messages={messages}
+      />
+
+      {/* Ghosted Inquiries & Dropped Threads Modal */}
+      <GhostedThreadsModal
+        isOpen={isGhostedModalOpen}
+        onClose={() => setIsGhostedModalOpen(false)}
+        threads={ghostedThreads}
+        onJumpToSource={msgId => setSourceViewerTargetId(msgId)}
+      />
+
+      {/* Collaboration Wrapped Analytics Modal */}
+      <WrappedModal
+        isOpen={isWrappedModalOpen}
+        onClose={() => setIsWrappedModalOpen(false)}
+        analytics={wrappedAnalytics}
       />
 
       {/* Source Verification Context Modal */}

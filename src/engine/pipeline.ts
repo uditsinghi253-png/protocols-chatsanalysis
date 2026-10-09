@@ -12,6 +12,7 @@ import { verifyItemsGrounding } from './groundingVerifier';
 import { resolveSupersessions } from './supersession';
 import { rescoreAllItems } from './scoring';
 import { generateDeterministicSummary } from './summarizer';
+import { enrichItemsWithFlaggers } from './flaggers';
 import { Message, Item, IdentityProfile, ConversationState, TriageSummary } from '../types/schema';
 import { AppConfig } from '../config';
 
@@ -137,9 +138,12 @@ export async function runTriagePipeline(options: PipelineOptions): Promise<Pipel
   options.onProgress?.('Calculating explainable urgency scores (L4)...');
   const scoredItems = rescoreAllItems(nonSupersededItems, options.config, referenceNow);
 
+  // 6b. Enrich items with diagnostic flaggers & statistical markers
+  const enrichedItems = enrichItemsWithFlaggers(scoredItems, activeMessages, referenceNow);
+
   // 7. Summarization
   options.onProgress?.('Compiling unread triage summary...');
-  const summary = generateDeterministicSummary(activeMessages, scoredItems, convId);
+  const summary = generateDeterministicSummary(activeMessages, enrichedItems, convId);
   if (llmSummary) {
     summary.overallSummary = `${llmSummary} (${summary.overallSummary})`;
     summary.engineUsed = 'local_llm';
@@ -152,7 +156,7 @@ export async function runTriagePipeline(options: PipelineOptions): Promise<Pipel
     unreadMessages: activeMessages,
     conversationState,
     scopeUsed,
-    items: scoredItems,
+    items: enrichedItems,
     summary,
     engineUsed,
     formatDetected,

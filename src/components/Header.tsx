@@ -5,15 +5,17 @@
  */
 
 import React from 'react';
-import { Shield, Sliders, Settings, Trash2, Cpu, Terminal, FileText, Command } from 'lucide-react';
-import { EgressStats, RuntimeProbeResult } from '../types/schema';
+import { Shield, Sliders, Settings, Trash2, Terminal, FileText, Command, UserX, Sparkles } from 'lucide-react';
+import { EgressStats } from '../types/schema';
 
 interface HeaderProps {
   egressStats: EgressStats;
-  runtimeStatus: RuntimeProbeResult;
   isLiveStreamConnected?: boolean;
   onOpenCommandPalette: () => void;
   onOpenExecutiveBriefing: () => void;
+  onOpenGhostedThreads?: () => void;
+  ghostedCount?: number;
+  onOpenWrapped?: () => void;
   onOpenPrivacyProof: () => void;
   onOpenWhyDrawer: () => void;
   onOpenSettings: () => void;
@@ -23,10 +25,12 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({
   egressStats,
-  runtimeStatus,
   isLiveStreamConnected,
   onOpenCommandPalette,
   onOpenExecutiveBriefing,
+  onOpenGhostedThreads,
+  ghostedCount = 0,
+  onOpenWrapped,
   onOpenPrivacyProof,
   onOpenWhyDrawer,
   onOpenSettings,
@@ -109,31 +113,68 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Right Controls */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-        {/* Active Engine Indicator */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '5px 10px',
-            borderRadius: '6px',
-            background: 'rgba(255, 255, 255, 0.03)',
-            border: '1px solid var(--border-hairline)',
-            fontSize: '11px',
-            fontFamily: 'var(--font-mono)',
-          }}
-        >
-          <span
-            className="led-indicator"
-            style={{ backgroundColor: runtimeStatus.isOnline ? 'var(--success)' : 'var(--accent)' }}
-          />
-          <Cpu size={12} color="var(--text-muted)" />
-          <span style={{ color: 'var(--text-secondary)' }}>
-            {runtimeStatus.isOnline
-              ? `${runtimeStatus.engineType.toUpperCase()}`
-              : 'REAL-TIME ENGINE'}
-          </span>
-        </div>
+        {/* Ghosted Chats Button */}
+        {hasData && (
+          <button
+            onClick={onOpenGhostedThreads}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '5px 11px',
+              borderRadius: '6px',
+              background: (ghostedCount > 0) ? 'rgba(245, 158, 11, 0.12)' : 'rgba(255, 255, 255, 0.04)',
+              border: (ghostedCount > 0) ? '1px solid rgba(245, 158, 11, 0.35)' : '1px solid var(--border-hairline)',
+              color: (ghostedCount > 0) ? '#fbbf24' : 'var(--text-secondary)',
+              fontSize: '11px',
+              fontWeight: '600',
+              cursor: 'pointer',
+            }}
+            title="Inspect unanswered inquiries and dropped threads"
+          >
+            <UserX size={12} />
+            <span>Ghosted</span>
+            {ghostedCount > 0 && (
+              <span
+                style={{
+                  fontSize: '9px',
+                  fontFamily: 'var(--font-mono)',
+                  padding: '1px 5px',
+                  borderRadius: '10px',
+                  background: '#f59e0b',
+                  color: '#000',
+                  fontWeight: '700',
+                }}
+              >
+                {ghostedCount}
+              </span>
+            )}
+          </button>
+        )}
+
+        {/* Wrapped Analytics Button */}
+        {hasData && (
+          <button
+            onClick={onOpenWrapped}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '5px 11px',
+              borderRadius: '6px',
+              background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(168, 85, 247, 0.15) 100%)',
+              border: '1px solid rgba(168, 85, 247, 0.35)',
+              color: '#c084fc',
+              fontSize: '11px',
+              fontWeight: '600',
+              cursor: 'pointer',
+            }}
+            title="Open Spotify-Wrapped style collaboration analytics"
+          >
+            <Sparkles size={12} />
+            <span>Wrapped</span>
+          </button>
+        )}
 
         {/* Live Watcher Pill */}
         {isLiveStreamConnected && (

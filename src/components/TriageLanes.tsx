@@ -23,7 +23,8 @@ export const TriageLanes: React.FC<TriageLanesProps> = ({
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
   const [fyiExpanded, setFyiExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeFilter, setActiveFilter] = useState<'all' | 'open' | 'action_item' | 'decision' | 'deadline' | 'resources'>('all');
+  type FilterType = 'all' | 'open' | 'action_item' | 'decision' | 'deadline' | 'resources' | 'ghost_risk' | 'blocking' | 'high_velocity';
+  const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const [expandedLanes, setExpandedLanes] = useState<Record<string, boolean>>({});
 
   const toggleLaneExpand = (laneKey: string) => {
@@ -54,6 +55,8 @@ export const TriageLanes: React.FC<TriageLanesProps> = ({
       result = result.filter(it => it.kind === 'deadline');
     } else if (activeFilter === 'resources') {
       result = result.filter(it => it.kind === 'important_message');
+    } else if (activeFilter === 'ghost_risk' || activeFilter === 'blocking' || activeFilter === 'high_velocity') {
+      result = result.filter(it => it.flaggers?.some(f => f.type === activeFilter));
     }
 
     return result;
@@ -150,7 +153,10 @@ export const TriageLanes: React.FC<TriageLanesProps> = ({
             { id: 'action_item', label: 'Actions' },
             { id: 'deadline', label: 'Deadlines' },
             { id: 'decision', label: 'Decisions' },
-            { id: 'resources', label: 'Links/Resources' },
+            { id: 'ghost_risk', label: 'Ghost Risk' },
+            { id: 'blocking', label: 'Blocking' },
+            { id: 'high_velocity', label: 'Burst Flurry' },
+            { id: 'resources', label: 'Resources' },
           ].map(f => (
             <button
               key={f.id}
@@ -249,6 +255,7 @@ export const TriageLanes: React.FC<TriageLanesProps> = ({
                     onJumpToSource={onJumpToSource}
                     onToggleStatus={onToggleStatus}
                     onFeedback={onFeedback}
+                    onFlaggerClick={type => setActiveFilter(type as any)}
                   />
                 ))}
                 {actionItems.length > PAGE_SIZE && (
@@ -300,6 +307,7 @@ export const TriageLanes: React.FC<TriageLanesProps> = ({
                     onJumpToSource={onJumpToSource}
                     onToggleStatus={onToggleStatus}
                     onFeedback={onFeedback}
+                    onFlaggerClick={type => setActiveFilter(type as any)}
                   />
                 ))}
                 {deadlines.length > PAGE_SIZE && (
@@ -351,6 +359,7 @@ export const TriageLanes: React.FC<TriageLanesProps> = ({
                     onJumpToSource={onJumpToSource}
                     onToggleStatus={onToggleStatus}
                     onFeedback={onFeedback}
+                    onFlaggerClick={type => setActiveFilter(type as any)}
                   />
                 ))}
                 {decisions.length > PAGE_SIZE && (
@@ -402,6 +411,7 @@ export const TriageLanes: React.FC<TriageLanesProps> = ({
                     onJumpToSource={onJumpToSource}
                     onToggleStatus={onToggleStatus}
                     onFeedback={onFeedback}
+                    onFlaggerClick={type => setActiveFilter(type as any)}
                   />
                 ))}
                 {mentions.length > PAGE_SIZE && (
@@ -438,6 +448,7 @@ export const TriageLanes: React.FC<TriageLanesProps> = ({
               onJumpToSource={onJumpToSource}
               onToggleStatus={onToggleStatus}
               onFeedback={onFeedback}
+              onFlaggerClick={type => setActiveFilter(type as any)}
             />
           ))}
           {filteredItems.length > 50 && (
@@ -495,6 +506,7 @@ export const TriageLanes: React.FC<TriageLanesProps> = ({
                   onJumpToSource={onJumpToSource}
                   onToggleStatus={onToggleStatus}
                   onFeedback={onFeedback}
+                  onFlaggerClick={type => setActiveFilter(type as any)}
                 />
               ))}
             </div>
