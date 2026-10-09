@@ -56,7 +56,6 @@ export const App: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [conversationState, setConversationState] = useState<ConversationState | null>(null);
   const [triageScope, setTriageScope] = useState<TriageScope>('last_7d');
-  const [activePreset, setActivePreset] = useState<ChatPreset>('rudra');
   const [items, setItems] = useState<Item[]>([]);
   const [summary, setSummary] = useState<TriageSummary | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -124,7 +123,7 @@ export const App: React.FC = () => {
     // Background silent probe of loopback inference
     modelRuntime.probeRuntime().catch(() => {});
 
-    // Load persisted state or bootstrap with real chat dataset
+    // Load persisted profile and config, but always initialize on Chat Selection page
     (async () => {
       const savedProfile = await localStore.loadIdentityProfile();
       if (savedProfile) setProfile(savedProfile);
@@ -132,27 +131,11 @@ export const App: React.FC = () => {
       const savedConfig = await localStore.loadConfig();
       if (savedConfig) setConfig(savedConfig);
 
-      const savedSession = await localStore.loadSession();
-      // Check if session contains corrupted single markdown line
-      const isCorrupted =
-        savedSession &&
-        savedSession.messages.length === 1 &&
-        (savedSession.messages[0]?.sender === 'System' ||
-          savedSession.messages[0]?.text.includes('# ') ||
-          savedSession.messages[0]?.text.includes('RAG DESIGN'));
-
-      if (isCorrupted) {
-        localStore.wipeAllData();
-        await handleLoadRealChat();
-      } else if (savedSession && savedSession.messages.length > 0) {
-        setMessages(savedSession.messages);
-        setConversationState(savedSession.conversationState);
-        setItems(savedSession.items);
-        setSummary(savedSession.summary);
-      } else {
-        // Auto-bootstrap real chat dataset if store is empty
-        await handleLoadRealChat();
-      }
+      // Requirement: Whenever app is opened, point directly to Chat Selection page
+      setMessages([]);
+      setConversationState(null);
+      setItems([]);
+      setSummary(null);
     })();
 
     return () => {
@@ -365,7 +348,6 @@ export const App: React.FC = () => {
   // 5b. Multi-Dataset Loader (Rudra: 7k, CSE 6: 21k, Maths: 1.2k)
   // Universal: loads bundled static chat on any cloud host, falls back to loopback daemon
   const handleLoadPreset = async (preset: ChatPreset = 'rudra') => {
-    setActivePreset(preset);
     setIsLoading(true);
     const fileName = PRESET_FILES[preset];
     setProgressStage(`Loading real dataset (${preset.toUpperCase()})...`);
@@ -608,6 +590,19 @@ export const App: React.FC = () => {
     setSummary(null);
   };
 
+  // 11. Return to Chat Selection page
+  const handleBackToChatSelect = () => {
+    setMessages([]);
+    setConversationState(null);
+    setItems([]);
+    setSummary(null);
+    if (liveSimulationTimerRef.current) {
+      clearInterval(liveSimulationTimerRef.current);
+      liveSimulationTimerRef.current = null;
+    }
+    setIsLiveSimulationActive(false);
+  };
+
   const hasData = messages.length > 0;
   const activeSelectedId = items[selectedItemIndex]?.id || null;
 
@@ -625,9 +620,7 @@ export const App: React.FC = () => {
         onOpenWhyDrawer={() => setIsWhyDrawerOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onWipeData={handleWipeData}
-        onLoadRealChat={handleLoadRealChat}
-        onLoadPreset={handleLoadPreset}
-        activePreset={activePreset}
+        onSelectChatPage={handleBackToChatSelect}
         isLiveSimulationActive={isLiveSimulationActive}
         onToggleLiveSimulation={handleToggleLiveSimulation}
         hasData={hasData}
@@ -739,6 +732,7 @@ export const App: React.FC = () => {
         onWipeData={handleWipeData}
         onOpenGhostedThreads={() => setIsGhostedModalOpen(true)}
         onOpenWrapped={() => setIsWrappedModalOpen(true)}
+        onSelectChatPage={handleBackToChatSelect}
       />
 
       {/* Executive Standup Briefing Exporter Modal */}

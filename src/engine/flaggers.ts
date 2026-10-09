@@ -24,7 +24,7 @@ export function enrichItemsWithFlaggers(
     const msg = sourceMsgId ? msgMap.get(sourceMsgId) : undefined;
     const text = item.detail.toLowerCase();
 
-    // 1. Ghost Risk Flagger
+    // 1. Awaiting Reply Flagger (formerly Ghost Risk)
     if (item.kind === 'question_for_user' && item.status === 'open') {
       const msgTs = msg ? new Date(msg.ts).getTime() : new Date().getTime();
       const hoursWaiting = (referenceNow.getTime() - msgTs) / (3600 * 1000);
@@ -33,7 +33,7 @@ export function enrichItemsWithFlaggers(
         flaggers.push({
           id: `flg_ghost_${item.id}`,
           type: 'ghost_risk',
-          label: days >= 1 ? `Ghost Risk (${days}d)` : `Ghost Risk (${Math.round(hoursWaiting)}h)`,
+          label: days >= 1 ? `Awaiting Reply (${days}d)` : `Awaiting Reply (${Math.round(hoursWaiting)}h)`,
           explanation: `Inquiry addressed to you has remained open for ${Math.round(hoursWaiting)} hours without reply.`,
         });
       }
@@ -49,7 +49,7 @@ export function enrichItemsWithFlaggers(
       });
     }
 
-    // 3. High Velocity Flurry Marker
+    // 3. Active Discussion Marker (formerly High Velocity Flurry)
     if (msg) {
       const msgIdx = messages.findIndex(m => m.id === msg.id);
       if (msgIdx !== -1) {
@@ -61,8 +61,8 @@ export function enrichItemsWithFlaggers(
           flaggers.push({
             id: `flg_burst_${item.id}`,
             type: 'high_velocity',
-            label: 'High Velocity Flurry',
-            explanation: 'Committed during a rapid-fire conversational exchange (< 5 min burst).',
+            label: 'Active Discussion',
+            explanation: 'Sent during an active, fast-paced conversation exchange (< 5 min window).',
           });
         }
       }

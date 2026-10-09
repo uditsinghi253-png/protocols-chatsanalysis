@@ -19,6 +19,7 @@ interface CommandPaletteModalProps {
   onWipeData: () => void;
   onOpenGhostedThreads?: () => void;
   onOpenWrapped?: () => void;
+  onSelectChatPage?: () => void;
 }
 
 export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
@@ -32,6 +33,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
   onWipeData,
   onOpenGhostedThreads,
   onOpenWrapped,
+  onSelectChatPage,
 }) => {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -52,6 +54,12 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
   );
 
   const actions = [
+    {
+      id: 'select_chat',
+      label: 'Switch / Select Conversation to Analyze',
+      icon: <FileText size={14} color="#a5b4fc" />,
+      execute: () => { onSelectChatPage?.(); onClose(); },
+    },
     {
       id: 'ghosted',
       label: 'Inspect Ghosted Inquiries & Unreturned Threads',

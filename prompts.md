@@ -93,7 +93,7 @@ Applied Behavioral Analytics Engineer specializing in conversational asymmetry a
    - Peak activity clustering (busiest day, peak hour of day, burst flurries).
    - Grounded conversation archetype derivation (e.g., "Night Owl Hacker Duo", "The Broadcast Channel", "The Rapid-Fire War Room").
    - Shared resource profiling (top domains, high-frequency technical keywords).
-3. Decorate items with interactive statistical markers: `Ghost Risk (Xd)`, `Blocking Dependency`, and `Velocity Flurry`.
+3. Decorate items with interactive, readable statistical markers: `Awaiting Reply (Xd)`, `Blocking Dependency`, and `Active Discussion`.
 
 [CONSTRAINTS & NEGATIVE DIRECTIVES]:
 - STATISTICAL ACCURACY: Metrics must be deterministically calculated from timestamp differentials. No estimated or fabricated latency values.
@@ -202,7 +202,7 @@ Web Performance Engineer specializing in static site generation and multi-tenant
    - 1:1 Direct Collaboration: Rudra & Udit (7,097 messages, 625 KB).
    - High-Density Cohort: CSE 6 (20,964 messages, 87 participants, 2.12 MB).
    - Academic Workgroup: Maths CSE 6 (1,242 messages, 35 participants, 187 KB).
-2. Create an intuitive 1-click dataset switcher in the Header and Empty State components for instantaneous demonstration.
+2. Establish a dedicated Chat Selection Workspace that the app opens directly into on launch, keeping the top navigation clean and distraction-free, with a prominent "Select Chat" header button allowing users to switch conversations anytime.
 3. Configure Vite bundler for relative asset pathing (`base: './'`) to ensure that GitHub Pages sub-path deployments load stylesheets, scripts, and bundled datasets without 404 MIME errors.
 
 [CONSTRAINTS & NEGATIVE DIRECTIVES]:

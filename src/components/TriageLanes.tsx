@@ -153,9 +153,9 @@ export const TriageLanes: React.FC<TriageLanesProps> = ({
             { id: 'action_item', label: 'Actions' },
             { id: 'deadline', label: 'Deadlines' },
             { id: 'decision', label: 'Decisions' },
-            { id: 'ghost_risk', label: 'Ghost Risk' },
+            { id: 'ghost_risk', label: 'Awaiting Reply' },
             { id: 'blocking', label: 'Blocking' },
-            { id: 'high_velocity', label: 'Burst Flurry' },
+            { id: 'high_velocity', label: 'Active Discussion' },
             { id: 'resources', label: 'Resources' },
           ].map(f => (
             <button

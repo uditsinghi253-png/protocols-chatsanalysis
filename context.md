@@ -73,7 +73,7 @@ ProtocolX solves both challenges through a **zero-egress, client-side intelligen
   - Computes message and word distributions, median reply latencies, conversation balance parity ratios, and top shared domains/keywords.
   - Assigns grounded conversation archetypes (e.g., *"Night Owl Hacker Duo"*, *"The Broadcast Channel"*, *"The Rapid-Fire War Room"*) based on activity cluster analysis.
 - **Interactive Statistical Flaggers (`src/engine/flaggers.ts`):**
-  - Enriches items with real-time indicators: `Ghost Risk (Xd)`, `Blocking Dependency`, and `High Velocity Flurry`.
+  - Enriches items with real-time indicators: `Awaiting Reply (Xd)`, `Blocking Dependency`, and `Active Discussion`.
 
 ### 2.4. Subsurface Intelligence Layer
 - Rather than presenting chatty, unstructured LLM outputs or raw markdown thought streams to the user, ProtocolX encapsulates intelligence in a **subsurface model runtime** (`src/engine/modelRuntime.ts`).
@@ -86,6 +86,7 @@ ProtocolX solves both challenges through a **zero-egress, client-side intelligen
 
 ### 2.6. Executive Linear Design System
 - **Design Paradigm:** Inspired by Linear and Raycast ergonomics. Zero decorative emojis, dark mode palette (`#09090b`, `#18181b`, `#27272a`), monospace numerical metrics (`font-mono`), subtle micro-animations, and high scannability.
+- **Dedicated Chat Selection Page:** On launch, the application opens directly to a focused Chat Selection workspace featuring verified datasets and file dropzones, keeping the top navigation clean and uncluttered. A **"Select Chat"** button in the header allows returning to conversation selection anytime.
 - **Activity Velocity Scrubber (`src/components/TimelineVelocityChart.tsx`):** A temporal histogram chart that dynamically groups message frequencies over time. Users can click any timeline bar to scrub the unread cursor and re-triage the backlog from that exact moment.
 - **Command Palette & Keyboard Navigation:**
   - `Cmd+K` / `Ctrl+K`: Global command search across all items, views, and datasets.
@@ -98,7 +99,7 @@ ProtocolX solves both challenges through a **zero-egress, client-side intelligen
 
 ## 3. Real-World Datasets & Benchmark Results
 
-ProtocolX includes three production datasets bundled in `public/data/` accessible via a 1-click switcher in the header:
+ProtocolX includes three production datasets bundled in `public/data/` selectable on the Chat Selection Page:
 
 | Dataset Identifier | Context & Participant Dynamics | Total Messages | Participants | File Size | Parse & Benchmark Latency |
 |---|---|---|---|---|---|

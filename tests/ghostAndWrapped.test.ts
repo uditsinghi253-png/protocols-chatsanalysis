@@ -71,10 +71,11 @@ describe('Ghosted Threads, Wrapped Analytics & Flaggers', () => {
     expect(ghosts[0].suggestedAction).toContain('Following up on: Did we finalize');
   });
 
-  it('enriches items with statistical markers (blocking, burst, resource anchor)', () => {
+  it('enriches items with readable statistical markers (Awaiting Reply, Active Discussion, blocking, resource)', () => {
     const testMessages: Message[] = [
       { id: 'm1', conversationId: 'c1', sender: 'Rudra', senderId: 'r', text: 'Hey wait hold on let me check first', ts: '2026-04-10T10:00:00.000Z', ordinal: 1 },
       { id: 'm2', conversationId: 'c1', sender: 'Udit', senderId: 'u', text: 'Check out https://github.com/protocol/repo', ts: '2026-04-10T10:01:00.000Z', ordinal: 2 },
+      { id: 'm3', conversationId: 'c1', sender: 'Rudra', senderId: 'r', text: 'Hey Udit when can you send the report?', ts: '2026-04-09T10:00:00.000Z', ordinal: 3 },
     ];
 
     const { items } = extractL1Signals(testMessages, mockProfile, DEFAULT_CONFIG);
@@ -82,6 +83,10 @@ describe('Ghosted Threads, Wrapped Analytics & Flaggers', () => {
 
     const resourceItem = enriched.find(it => it.evidence[0]?.messageId === 'm2');
     expect(resourceItem?.flaggers?.some(f => f.type === 'resource_anchor')).toBe(true);
+
+    const questionItem = enriched.find(it => it.evidence[0]?.messageId === 'm3');
+    const awaitFlag = questionItem?.flaggers?.find(f => f.type === 'ghost_risk');
+    expect(awaitFlag?.label).toContain('Awaiting Reply');
   });
 
   it('executes Ghosted and Wrapped analytics across real WhatsApp export (7,097 messages)', () => {

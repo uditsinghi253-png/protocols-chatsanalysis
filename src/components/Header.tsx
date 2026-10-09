@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { Shield, Sliders, Settings, Trash2, Terminal, FileText, Command, UserX, Sparkles, Zap, Radio } from 'lucide-react';
+import { Shield, Sliders, Settings, Trash2, Terminal, FileText, Command, UserX, Sparkles, Radio } from 'lucide-react';
 import { EgressStats } from '../types/schema';
 
 export type ChatPreset = 'rudra' | 'cse6' | 'maths';
@@ -22,9 +22,7 @@ interface HeaderProps {
   onOpenWhyDrawer: () => void;
   onOpenSettings: () => void;
   onWipeData: () => void;
-  onLoadRealChat?: () => void;
-  onLoadPreset?: (preset: ChatPreset) => void;
-  activePreset?: ChatPreset;
+  onSelectChatPage?: () => void;
   isLiveSimulationActive?: boolean;
   onToggleLiveSimulation?: () => void;
   hasData: boolean;
@@ -42,9 +40,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenWhyDrawer,
   onOpenSettings,
   onWipeData,
-  onLoadRealChat,
-  onLoadPreset,
-  activePreset = 'rudra',
+  onSelectChatPage,
   isLiveSimulationActive = false,
   onToggleLiveSimulation,
   hasData,
@@ -64,7 +60,16 @@ export const Header: React.FC<HeaderProps> = ({
       }}
     >
       {/* Brand & Mission */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+      <div
+        onClick={hasData ? onSelectChatPage : undefined}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '14px',
+          cursor: hasData && onSelectChatPage ? 'pointer' : 'default',
+        }}
+        title={hasData && onSelectChatPage ? 'Return to Chat Selection page' : undefined}
+      >
         <div
           style={{
             width: '28px',
@@ -188,70 +193,30 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         )}
 
-        {/* Real Chat Dataset Presets Switcher */}
-        {onLoadPreset ? (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              background: 'rgba(255, 255, 255, 0.04)',
-              borderRadius: '6px',
-              padding: '2px',
-              border: '1px solid var(--border-hairline)',
-              gap: '2px',
-            }}
-          >
-            {[
-              { id: 'rudra' as const, label: 'Rudra (7k)', title: 'WhatsApp Direct Chat: Rudra & Udit (7,097 msgs)' },
-              { id: 'cse6' as const, label: 'CSE 6 (21k)', title: 'WhatsApp College Cohort: CSE 6 (20,964 msgs)' },
-              { id: 'maths' as const, label: 'Maths (1.2k)', title: 'WhatsApp Maths Group: Maths CSE 6 (1,242 msgs)' },
-            ].map(p => {
-              const isActive = activePreset === p.id;
-              return (
-                <button
-                  key={p.id}
-                  onClick={() => onLoadPreset(p.id)}
-                  style={{
-                    padding: '4px 9px',
-                    borderRadius: '4px',
-                    fontSize: '11px',
-                    fontFamily: 'var(--font-mono)',
-                    fontWeight: isActive ? '700' : '500',
-                    background: isActive ? 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)' : 'transparent',
-                    color: isActive ? '#fff' : 'var(--text-secondary)',
-                    border: 'none',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                  }}
-                  title={p.title}
-                >
-                  {p.label}
-                </button>
-              );
-            })}
-          </div>
-        ) : onLoadRealChat ? (
+        {/* Select / Change Chat Button */}
+        {hasData && onSelectChatPage && (
           <button
-            onClick={onLoadRealChat}
+            onClick={onSelectChatPage}
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              padding: '5px 11px',
+              padding: '5px 12px',
               borderRadius: '6px',
-              background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.2) 0%, rgba(124, 58, 237, 0.2) 100%)',
-              border: '1px solid rgba(124, 58, 237, 0.4)',
-              color: '#a5b4fc',
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid var(--border-subtle)',
+              color: '#e2e8f0',
               fontSize: '11px',
-              fontWeight: '700',
+              fontWeight: '600',
               cursor: 'pointer',
+              transition: 'all 0.15s ease',
             }}
-            title="Load the 7,097 messages real WhatsApp export directly"
+            title="Return to Chat Selection page to analyze a different chat"
           >
-            <Zap size={12} color="#818cf8" />
-            <span>Load Real Chat (7,097)</span>
+            <FileText size={12} color="#a5b4fc" />
+            <span>Select Chat</span>
           </button>
-        ) : null}
+        )}
 
         {/* Real-Time Live Message Stream Simulator Toggle */}
         {onToggleLiveSimulation && (
